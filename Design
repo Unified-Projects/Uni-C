@@ -1,0 +1,93 @@
+Stages
+ - Scanner
+ - Parser
+ - Semantic Analysis
+ - Intermediate Code Generation
+ - Code Optimization
+ - General Optimisation (Later Date)
+ - Code Generation
+ - Assembly
+ - OS-Dependent Optimisation (Later Date)
+ - Linking
+
+Syntax Design
+ - Generics:
+   - ; for line separation
+   - {} for block separation
+   - () for function arguments
+   - [] for indexing
+   - . for member access
+   - , for argument separation
+   - > for pointer access
+   - < for pointer parenting / Backscoping
+   - Var : Type    or     Type Var
+    - Var : Type = Value    or     Type Var = Value
+   
+  Special Operators:
+    - Instancing
+      new Type
+    - Re-Instancing
+      Var = new Type
+      new Var
+
+    - De-Allocation
+      - delete Var
+      - delete Type
+    
+    - Operator Functions Var.(OppFunc) or Var>(OppFunc)
+
+  Function Definitions
+    - ReturnType FunctionDef(args) {}
+    - ReturnType FunctionDef(args) => {}
+    - FunctionDef(args) {} : ReturnType
+    - FunctionDef(args) => {} : ReturnType
+
+  Function Assignment (Inherits return Type)
+    - Var = FunctionDef
+
+  Special Case: (Define within function)
+     - Var : ReturnType = (Args) => {}
+     - Var : ReturnType = (Args)::(CaptureArgs) => {}
+
+  Data Types:
+    - Int : 32 bits (Signed)
+    - UInt : 32 bits (Unsigned)
+    - Long : 64 bits (Signed)
+    - ULong : 64 bits (Unsigned)
+    - Float : 32 bits
+    - Double : 64 bits
+    - Char : 8 bits (Signed)
+    - UChar : 8 bits (Unsigned)
+    - String : Array of Chars
+    - Bool : 1 bit
+    - Void : No Return Type
+
+  Class / Structs
+    - class ClassName {}
+    - struct StructName {} <- No Non-Operator Functions
+
+    Data Protections:
+      - public
+      - private
+      - protected (Accessable by child classes)
+
+    Constructor
+      - ClassName(args) {}
+      - ClassName(args) => {}
+
+    Deconstructor
+      - ~ClassName(args) {}
+      - ~ClassName(args) => {}
+
+  Inheritance
+    - class ClassName : ParentClass {}
+
+  Operator Functions
+   - Can Overload
+   Defined As function within class as such
+    - Opp (OppType) => {} : Return Type
+    - Opp (OppType) {} : Return Type
+
+  Using
+    - Namespacing (Later Date)
+    - using x : i (Later Date) (Type x is equivenet to Type i)

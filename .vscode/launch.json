@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Compile Sample",
+            "cwd" : "${workspaceFolder}",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Compiler.exe",
+            "args": [
+                "-i",
+                "${file}",
+                "-o",
+                "${fileBasenameNoExtension}.out"
+            ],
+            "console": "internalConsole"
+        },
+        {
+            "name": "Debug Sample",
+            "cwd" : "${workspaceFolder}",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Compiler.exe",
+            "args": [
+                "-i",
+                "${file}",
+                "-o",
+                "${fileBasenameNoExtension}.out"
+            ],
+            "MIMode": "gdb",
+        }
+    ]
+}

@@ -1,0 +1,62 @@
+#include <Parsing/UtilityFunctions.h>
+
+using namespace Parsing;
+
+std::string Parsing::EatWhitespace(const std::string& str){
+    if(str.size() == 0){
+        return "";
+    }
+    size_t pos = str.find_first_not_of(" \t\n\r\f\v");
+    if(pos == std::string::npos){
+        return "";
+    }
+    return str.substr(pos);
+}
+
+std::string Parsing::EatChar(const std::string& str){
+    if(str.size() == 0){
+        return "";
+    }
+    return str.substr(1);
+}
+
+std::string Parsing::EatWord(const std::string& str){
+    if(str.size() == 0){
+        return "";
+    }
+    size_t pos = str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
+    if(pos == std::string::npos){
+        return "";
+    }
+    return str.substr(pos);
+}
+
+std::string Parsing::EatUntil(const std::string& str, const char& end){
+    if(str.size() == 0){
+        return "";
+    }
+    return str.substr(str.find(end));
+}
+
+std::string Parsing::GetWord(const std::string& str){
+    if(str.size() == 0){
+        return "";
+    }
+    size_t pos = str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
+    if(pos == std::string::npos){
+        return "";
+    }
+    return str.substr(0, pos);
+}
+char Parsing::GetChar(const std::string& str){
+    if(str.size() == 0){
+        return 0;
+    }
+    return str.c_str()[0];
+}
+std::string Parsing::GetUntil(const std::string& str, const char& end){
+    if(str.size() == 0){
+        return "";
+    }
+    return str.substr(0, str.find(end));
+}

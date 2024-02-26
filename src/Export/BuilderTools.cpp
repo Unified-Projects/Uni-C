@@ -1,10 +1,14 @@
 #include <Export/BuilderTools.h>
 
+#include <iostream>
+
 using namespace Exporting;
 using namespace Exporting::Helpers;
 
 using namespace Parsing;
 using namespace Parsing::SemanticVariables;
+
+extern std::map<std::string, SemanticTypeDefinition> SemanticTypeMap;
 
 StackTrace::StackTrace(){
     stackPointer = 0;
@@ -15,6 +19,86 @@ StackTrace::StackTrace(){
 }
 StackTrace::~StackTrace(){
 
+}
+
+void StackTrace::Push(RegisterValue scope){
+    stack.push_back(scope);
+    stackSize++;
+    stackPointer = stackSize-1;
+
+    if(stackSize == 1){
+        stackStart = 0;
+    }
+    else{
+        stackStart = stackSize-1;
+    }
+
+    // Check if stack is too big
+    if(stackSize > 0x4 * 0x1000 * 0x1000){
+        stack.erase(stack.begin());
+        stackSize--;
+        stackStart--;
+    }
+}
+RegisterValue StackTrace::Pop(){
+    if(stackSize == 0){
+        return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+    }
+
+    stackSize--;
+    stackPointer = stackSize+1;
+
+    return stack[stackSize];
+}
+RegisterValue StackTrace::Peek(){
+    if(stackSize == 0){
+        return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+    }
+
+    return stack[stackSize-1];
+}
+
+void StackTrace::Clear(){
+    stack.clear();
+    stackSize = 0;
+    stackPointer = 0;
+    stackStart = 0;
+}
+
+std::string Helpers::GetSymbol(SemanticVariable* Var){
+    std::string Symbol = "";
+
+    if(Var->Type() == SemanticTypeVariable){
+        Symbol = ((Variable*)Var)->Identifier + "_" + std::to_string(((Variable*)Var)->LocalScope) + "_" + std::to_string(((Variable*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeFunction){
+        Symbol = ((Function*)Var)->Identifier + "_" + std::to_string(((Function*)Var)->LocalScope) + "_" + std::to_string(((Function*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeLiteral){
+        Symbol = "Value_" + std::to_string(((SemLiteral*)Var)->LocalScope) + "_" + std::to_string(((SemLiteral*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeScope){
+        Symbol = "Scope_" + std::to_string(((Scope*)Var)->LocalScope) + "_" + std::to_string(((Scope*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeType){
+        Symbol = ((SemTypeDef*)Var)->Identifier + "_" + std::to_string(((SemTypeDef*)Var)->LocalScope) + "_" + std::to_string(((SemTypeDef*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeStatement){
+        Symbol = "Statement_" + std::to_string(((SemStatement*)Var)->TypeID) + "_" + std::to_string(((SemStatement*)Var)->LocalScope) + "_" + std::to_string(((SemStatement*)Var)->ScopePosition);
+    }
+    else if(Var->Type() == SemanticTypeOperation){
+        Symbol = "Operation_" + std::to_string(((Operation*)Var)->TypeID) + "_" + std::to_string(((Operation*)Var)->LocalScope) + "_" + std::to_string(((Operation*)Var)->ScopePosition);
+    }
+    else{
+        std::cerr << "Unknown Type: " << Var->Type() << std::endl;
+    }
+
+    // Recurse Backwards
+    if(Var->Parent != nullptr){
+        Symbol = GetSymbol(Var->Parent) + "__" + Symbol;
+    }
+
+    return Symbol;
 }
 
 ScopeTree::ScopeTree(){
@@ -242,41 +326,399 @@ Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindVariable(std::strin
 }
 
 RegisterTable::RegisterTable(){
-    rax = 0;
-    rbx = 0;
-    rcx = 0;
-    rdx = 0;
-    rsi = 0;
-    rdi = 0;
-    rbp = 0;
-    rsp = 0;
-    r8 = 0;
-    r9 = 0;
-    r10 = 0;
-    r11 = 0;
-    r12 = 0;
-    r13 = 0;
-    r14 = 0;
-    r15 = 0;
+    Clear();
 }
 RegisterTable::~RegisterTable(){
 
 }
 void RegisterTable::Clear(){
-    rax = 0;
-    rbx = 0;
-    rcx = 0;
-    rdx = 0;
-    rsi = 0;
-    rdi = 0;
-    rbp = 0;
-    rsp = 0;
-    r8 = 0;
-    r9 = 0;
-    r10 = 0;
-    r11 = 0;
-    r12 = 0;
-    r13 = 0;
-    r14 = 0;
-    r15 = 0;
+    rax = {"rax", "eax", "ax", "al", "", nullptr, false, false, 0, 0, 0};
+    rbx = {"rbx", "ebx", "bx", "bl", "", nullptr, false, false, 0, 0, 0};
+    rcx = {"rcx", "ecx", "cx", "cl", "", nullptr, false, false, 0, 0, 0};
+    rdx = {"rdx", "edx", "dx", "dl", "", nullptr, false, false, 0, 0, 0};
+    rsi = {"rsi", "esi", "si", "si", "", nullptr, false, false, 0, 0, 0};
+    rdi = {"rdi", "edi", "di", "di", "", nullptr, false, false, 0, 0, 0};
+    rbp = {"rbp", "ebp", "bp", "bp", "", nullptr, false, false, 0, 0, 0};
+    rsp = {"rsp", "esp", "sp", "sp", "", nullptr, false, false, 0, 0, 0};
+    r8  = {"r8",  "r8d", "r8w", "r8b", "", nullptr, false, false, 0, 0, 0};
+    r9  = {"r9",  "r9d", "r9w", "r9b", "", nullptr, false, false, 0, 0, 0};
+    r10 = {"r10", "e10", "r10", "r10", "", nullptr, false, false, 0, 0, 0};
+    r11 = {"r11", "e11", "r11", "r11", "", nullptr, false, false, 0, 0, 0};
+    r12 = {"r12", "e12", "r12", "r12", "", nullptr, false, false, 0, 0, 0};
+    r13 = {"r13", "e13", "r13", "r13", "", nullptr, false, false, 0, 0, 0};
+    r14 = {"r14", "e14", "r14", "r14", "", nullptr, false, false, 0, 0, 0};
+    r15 = {"r15", "e15", "r15", "r15", "", nullptr, false, false, 0, 0, 0};
+}
+
+std::string RegisterTable::MovReg(std::string r1, std::string r2){
+    RegisterValue reg1 = {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+    RegisterValue reg2 = {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+
+    if(r1 == "rax"){
+        reg1 = rax;
+    }
+    else if(r1 == "rbx"){
+        reg1 = rbx;
+    }
+    else if(r1 == "rcx"){
+        reg1 = rcx;
+    }
+    else if(r1 == "rdx"){
+        reg1 = rdx;
+    }
+    else if(r1 == "rsi"){
+        reg1 = rsi;
+    }
+    else if(r1 == "rdi"){
+        reg1 = rdi;
+    }
+    else if(r1 == "rbp"){
+        reg1 = rbp;
+    }
+    else if(r1 == "rsp"){
+        reg1 = rsp;
+    }
+    else if(r1 == "r8"){
+        reg1 = r8;
+    }
+    else if(r1 == "r9"){
+        reg1 = r9;
+    }
+    else if(r1 == "r10"){
+        reg1 = r10;
+    }
+    else if(r1 == "r11"){
+        reg1 = r11;
+    }
+    else if(r1 == "r12"){
+        reg1 = r12;
+    }
+    else if(r1 == "r13"){
+        reg1 = r13;
+    }
+    else if(r1 == "r14"){
+        reg1 = r14;
+    }
+    else if(r1 == "r15"){
+        reg1 = r15;
+    }
+    else{
+        return "; Unknown register error\n";
+    }
+
+    if(r2 == "rax"){
+        reg2 = rax;
+    }
+    else if(r2 == "rbx"){
+        reg2 = rbx;
+    }
+    else if(r2 == "rcx"){
+        reg2 = rcx;
+    }
+    else if(r2 == "rdx"){
+        reg2 = rdx;
+    }
+    else if(r2 == "rsi"){
+        reg2 = rsi;
+    }
+    else if(r2 == "rdi"){
+        reg2 = rdi;
+    }
+    else if(r2 == "rbp"){
+        reg2 = rbp;
+    }
+    else if(r2 == "rsp"){
+        reg2 = rsp;
+    }
+    else if(r2 == "r8"){
+        reg2 = r8;
+    }
+    else if(r2 == "r9"){
+        reg2 = r9;
+    }
+    else if(r2 == "r10"){
+        reg2 = r10;
+    }
+    else if(r2 == "r11"){
+        reg2 = r11;
+    }
+    else if(r2 == "r12"){
+        reg2 = r12;
+    }
+    else if(r2 == "r13"){
+        reg2 = r13;
+    }
+    else if(r2 == "r14"){
+        reg2 = r14;
+    }
+    else if(r2 == "r15"){
+        reg2 = r15;
+    }
+    else{
+        return "; Unknown register error\n";
+    }
+    
+    reg1.Update(&reg2);
+    
+    return "mov " + reg1.Register + ", " + reg2.Register + "\n";
+}
+
+std::string RegisterTable::PullFromStack(StackTrace* stack, std::string registerName){
+    auto reg = stack->Pop();
+    if(reg.TypeID == -1){
+        return "; Stack is empty\n";
+    }
+    if(registerName == "rax"){
+        rax.Update(&reg);
+        return "pop rax\n";
+    }
+    else if(registerName == "rbx"){
+        rbx.Update(&reg);
+        return "pop rbx\n";
+    }
+    else if(registerName == "rcx"){
+        rcx.Update(&reg);
+        return "pop rcx\n";
+    }
+    else if(registerName == "rdx"){
+        rdx.Update(&reg);
+        return "pop rdx\n";
+    }
+    else if(registerName == "rsi"){
+        rsi.Update(&reg);
+        return "pop rsi\n";
+    }
+    else if(registerName == "rdi"){
+        rdi.Update(&reg);
+        return "pop rdi\n";
+    }
+    else if(registerName == "rbp"){
+        rbp.Update(&reg);
+        return "pop rbp\n";
+    }
+    else if(registerName == "rsp"){
+        rsp.Update(&reg);
+        return "pop rsp\n";
+    }
+    else if(registerName == "r8"){
+        r8.Update(&reg);
+        return "pop r8\n";
+    }
+    else if(registerName == "r9"){
+        r9.Update(&reg);
+        return "pop r9\n";
+    }
+    else if(registerName == "r10"){
+        r10.Update(&reg);
+        return "pop r10\n";
+    }
+    else if(registerName == "r11"){
+        r11.Update(&reg);
+        return "pop r11\n";
+    }
+    else if(registerName == "r12"){
+        r12.Update(&reg);
+        return "pop r12\n";
+    }
+    else if(registerName == "r13"){
+        r13.Update(&reg);
+        return "pop r13\n";
+    }
+    else if(registerName == "r14"){
+        r14.Update(&reg);
+        return "pop r14\n";
+    }
+    else if(registerName == "r15"){
+        r15.Update(&reg);
+        return "pop r15\n";
+    }
+    
+    return "; Unknown register error\n";
+}
+
+std::string RegisterTable::PushToStack(StackTrace* stack, std::string registerName){
+    if(registerName == "rax"){
+        stack->Push(rax);
+        return "push rax\n";
+    }
+    else if(registerName == "rbx"){
+        stack->Push(rbx);
+        return "push rbx\n";
+    }
+    else if(registerName == "rcx"){
+        stack->Push(rcx);
+        return "push rcx\n";
+    }
+    else if(registerName == "rdx"){
+        stack->Push(rdx);
+        return "push rdx\n";
+    }
+    else if(registerName == "rsi"){
+        stack->Push(rsi);
+        return "push rsi\n";
+    }
+    else if(registerName == "rdi"){
+        stack->Push(rdi);
+        return "push rdi\n";
+    }
+    else if(registerName == "rbp"){
+        stack->Push(rbp);
+        return "push rbp\n";
+    }
+    else if(registerName == "rsp"){
+        stack->Push(rsp);
+        return "push rsp\n";
+    }
+    else if(registerName == "r8"){
+        stack->Push(r8);
+        return "push r8\n";
+    }
+    else if(registerName == "r9"){
+        stack->Push(r9);
+        return "push r9\n";
+    }
+    else if(registerName == "r10"){
+        stack->Push(r10);
+        return "push r10\n";
+    }
+    else if(registerName == "r11"){
+        stack->Push(r11);
+        return "push r11\n";
+    }
+    else if(registerName == "r12"){
+        stack->Push(r12);
+        return "push r12\n";
+    }
+    else if(registerName == "r13"){
+        stack->Push(r13);
+        return "push r13\n";
+    }
+    else if(registerName == "r14"){
+        stack->Push(r14);
+        return "push r14\n";
+    }
+    else if(registerName == "r15"){
+        stack->Push(r15);
+        return "push r15\n";
+    }
+    
+    return "; Unknown register error\n";
+}
+
+std::string RegisterValue::set(Parsing::SemanticVariables::Variable* variable, bool isPointer){
+    this->Var = variable;
+    this->IsPointer = isPointer;
+    this->IsValue = false;
+    this->TypeID = variable->TypeID;
+    
+    // Find size
+    if(!isPointer){
+        for(auto type : SemanticTypeMap){
+            if(type.second.TypeID == variable->TypeID){
+                this->Size = type.second.Size;
+            }
+        }
+    }
+    else{
+        this->Size = 8;
+    }
+    this->Value = 0;
+
+    // What to return
+    return (isPointer ? "mov " + this->Register + ", " : "mov " + this->Register + ", [") + GetSymbol(variable) + (isPointer ? "" : "]") + "\n";
+}
+std::string RegisterValue::save(){
+    if(this->Var == nullptr){
+        return "; No variable to save\n";
+    }
+    if(this->IsPointer){
+        return "; No need to save pointer\n";
+    }
+    else{
+        return "mov [" + GetSymbol(this->Var) + "], " + this->Register + "\n";
+    }
+
+    return "; Unknown error\n";
+}
+std::string RegisterValue::set(Parsing::SemanticVariables::SemLiteral* variable){
+    this->Var = nullptr;
+    this->IsPointer = false;
+    this->IsValue = true;
+    this->TypeID = variable->TypeID;
+    
+    if(variable->TypeID == SemanticTypeMap["int"].TypeID || variable->TypeID == SemanticTypeMap["uint"].TypeID){
+        this->Value = (uint32_t)std::atoi(variable->Value.c_str());
+        return this->set((uint32_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["short"].TypeID || variable->TypeID == SemanticTypeMap["ushort"].TypeID){
+        this->Value = (uint16_t)std::atoi(variable->Value.c_str());
+        return this->set((uint16_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["long"].TypeID || variable->TypeID == SemanticTypeMap["ulong"].TypeID){
+        this->Value = (uint64_t)std::atoll(variable->Value.c_str());
+        return this->set((uint64_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["float"].TypeID){
+        this->Value = (uint32_t)std::atof(variable->Value.c_str());
+        return this->set((uint32_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["double"].TypeID){
+        this->Value = (uint64_t)std::atof(variable->Value.c_str());
+        return this->set((uint64_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["char"].TypeID || variable->TypeID == SemanticTypeMap["uchar"].TypeID){
+        this->Value = (uint8_t)variable->Value[0];
+        return this->set((uint8_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["bool"].TypeID){
+        this->Value = (uint8_t)variable->Value[0];
+        return this->set((uint8_t)this->Value);
+    }
+    else if(variable->TypeID == SemanticTypeMap["void"].TypeID){
+        return "; Cannot set void\n";
+    }
+    else if(variable->TypeID == SemanticTypeMap["string"].TypeID){
+        // Would store size in bytes as string length
+        return "; Cannot set string\n";
+    }
+    
+    std::cerr << "Unknown type: " << variable->TypeID << std::endl;
+    return "; Unknown type error"; // TODO CUstoms
+}
+
+std::string RegisterValue::set(uint64_t value){
+    this->Var = nullptr;
+    this->IsPointer = false;
+    this->IsValue = true;
+    this->Size = 8;
+    this->Value = value;
+    
+    return "mov " + this->Register + ", " + std::to_string(value) + "\n";
+}
+std::string RegisterValue::set(uint32_t value){
+    this->Var = nullptr;
+    this->IsPointer = false;
+    this->IsValue = true;
+    this->Size = 4;
+    this->Value = value;
+    
+    return "mov " + this->Register1 + ", " + std::to_string(value) + "\n";
+}
+std::string RegisterValue::set(uint16_t value){
+    this->Var = nullptr;
+    this->IsPointer = false;
+    this->IsValue = true;
+    this->Size = 2;
+    this->Value = value;
+
+    return "mov " + this->Register2 + ", " + std::to_string(value) + "\n";
+}
+std::string RegisterValue::set(uint8_t value){
+    this->Var = nullptr;
+    this->IsPointer = false;
+    this->IsValue = true;
+    this->Size = 1;
+    this->Value = value;
+
+    return "mov " + this->Register3 + ", " + std::to_string(value) + "\n";
 }

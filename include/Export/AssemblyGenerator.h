@@ -27,6 +27,5 @@ namespace Exporting
         std::string RecurseTreeForData(Parsing::SemanticVariables::SemanticVariable* Block);
         std::string StoreVariable(Parsing::SemanticVariables::Variable* Var);
         std::string StoreLiteral(Parsing::SemanticVariables::SemLiteral* Lit);
-        std::string GetSymbol(Parsing::SemanticVariables::SemanticVariable* Var);
     };
 } // namespace Export

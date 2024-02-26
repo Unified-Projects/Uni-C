@@ -9,6 +9,7 @@ namespace Parsing
     std::string EatChar(const std::string& str);
     std::string EatWord(const std::string& str, bool i = false);
     std::string EatUntil(const std::string& str, const char& end);
+    std::string EatUntil(const std::string& str, std::string end);
 
     std::string GetWord(const std::string& str, bool i = false);
     char GetChar(const std::string& str);

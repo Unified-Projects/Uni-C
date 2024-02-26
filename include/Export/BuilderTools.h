@@ -6,21 +6,57 @@ namespace Exporting
 {
     namespace Helpers
     {
+        std::string GetSymbol(Parsing::SemanticVariables::SemanticVariable* Var);
+
+        class StackTrace;
+
+        struct RegisterValue{
+            std::string Register = "";
+            std::string Register1 = "";
+            std::string Register2 = "";
+            std::string Register3 = "";
+            std::string Register4 = "";
+            Parsing::SemanticVariables::SemanticVariable* Var = nullptr;
+            bool IsPointer = false;
+            bool IsValue = false;
+            int Size = 0;
+            uint64_t Value = 0;
+            int TypeID = -1;
+
+            void Update(RegisterValue* value){
+                Var = value->Var;
+                IsPointer = value->IsPointer;
+                IsValue = value->IsValue;
+                Size = value->Size;
+                Value = value->Value;
+                TypeID = value->TypeID;
+            }
+
+            std::string set(Parsing::SemanticVariables::Variable* variable, bool isPointer);
+            std::string set(Parsing::SemanticVariables::SemLiteral* variable);
+            std::string save();
+
+            std::string set(uint64_t value);
+            std::string set(uint32_t value);
+            std::string set(uint16_t value);
+            std::string set(uint8_t value);
+        };
+
         class StackTrace{
         protected:
             int stackPointer = 0;
             int stackSize = 0;
             int stackStart = 0;
 
-            std::vector<Parsing::SemanticVariables::SemanticVariable*> stack = {};
+            std::vector<RegisterValue> stack = {};
         public:
             StackTrace();
             ~StackTrace();
         
         public:
-            void Push(Parsing::SemanticVariables::SemanticVariable* scope);
-            Parsing::SemanticVariables::SemanticVariable* Pop();
-            Parsing::SemanticVariables::SemanticVariable* Peek();
+            void Push(RegisterValue scope);
+            RegisterValue Pop();
+            RegisterValue Peek();
 
             void Clear();
 
@@ -56,63 +92,33 @@ namespace Exporting
         };
         
         class RegisterTable{
-        protected:
-            uint64_t rax = 0;
-            uint64_t rbx = 0;
-            uint64_t rcx = 0;
-            uint64_t rdx = 0;
-            uint64_t rsi = 0;
-            uint64_t rdi = 0;
-            uint64_t rbp = 0;
-            uint64_t rsp = 0;
-            uint64_t r8 = 0;
-            uint64_t r9 = 0;
-            uint64_t r10 = 0;
-            uint64_t r11 = 0;
-            uint64_t r12 = 0;
-            uint64_t r13 = 0;
-            uint64_t r14 = 0;
-            uint64_t r15 = 0;
+        public:
+            RegisterValue rax = {};
+            RegisterValue rbx = {};
+            RegisterValue rcx = {};
+            RegisterValue rdx = {};
+            RegisterValue rsi = {};
+            RegisterValue rdi = {};
+            RegisterValue rbp = {};
+            RegisterValue rsp = {};
+            RegisterValue r8 = {};
+            RegisterValue r9 = {};
+            RegisterValue r10 = {};
+            RegisterValue r11 = {};
+            RegisterValue r12 = {};
+            RegisterValue r13 = {};
+            RegisterValue r14 = {};
+            RegisterValue r15 = {};
         public:
             RegisterTable();
             ~RegisterTable();
-        
-        public:
-            uint64_t getRAX() {return rax;};
-            uint64_t getRBX() {return rbx;};
-            uint64_t getRCX() {return rcx;};
-            uint64_t getRDX() {return rdx;};
-            uint64_t getRSI() {return rsi;};
-            uint64_t getRDI() {return rdi;};
-            uint64_t getRBP() {return rbp;};
-            uint64_t getRSP() {return rsp;};
-            uint64_t getR8() {return r8;};
-            uint64_t getR9() {return r9;};
-            uint64_t getR10() {return r10;};
-            uint64_t getR11() {return r11;};
-            uint64_t getR12() {return r12;};
-            uint64_t getR13() {return r13;};
-            uint64_t getR14() {return r14;};
-            uint64_t getR15() {return r15;};
-
-            void setRAX(uint64_t value) {rax = value;};
-            void setRBX(uint64_t value) {rbx = value;};
-            void setRCX(uint64_t value) {rcx = value;};
-            void setRDX(uint64_t value) {rdx = value;};
-            void setRSI(uint64_t value) {rsi = value;};
-            void setRDI(uint64_t value) {rdi = value;};
-            void setRBP(uint64_t value) {rbp = value;};
-            void setRSP(uint64_t value) {rsp = value;};
-            void setR8(uint64_t value) {r8 = value;};
-            void setR9(uint64_t value) {r9 = value;};
-            void setR10(uint64_t value) {r10 = value;};
-            void setR11(uint64_t value) {r11 = value;};
-            void setR12(uint64_t value) {r12 = value;};
-            void setR13(uint64_t value) {r13 = value;};
-            void setR14(uint64_t value) {r14 = value;};
-            void setR15(uint64_t value) {r15 = value;};
             
         public:
+            std::string PullFromStack(StackTrace* stack, std::string registerName);
+            std::string PushToStack(StackTrace* stack, std::string registerName);
+
+            std::string MovReg(std::string register1, std::string register2);
+
             void Clear();
         };
     } // namespace SemanticHelpers

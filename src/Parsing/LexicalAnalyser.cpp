@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+#include <iostream> // TODO Remove
+
 using namespace Parsing;
 
 // Statements
@@ -92,7 +94,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         // Check for words
         std::string Word = GetWord(Stream);
         std::string WordI = GetWord(Stream, true);
-        if(WordI.size() > 0 && WordI.find_first_not_of("0123456789.-") == std::string::npos && ('-' == WordI.front() || WordI.find('-') == std::string::npos) && std::count(WordI.begin(), WordI.end(), '.') <= 1 && std::count(WordI.begin(), WordI.end(), '-') <= 1){
+        if(WordI.size() > 0 && WordI.find_first_not_of("0123456789.-") == std::string::npos && ('-' == WordI.front() || WordI.find('-') == std::string::npos) && std::count(WordI.begin(), WordI.end(), '.') <= 1 && std::count(WordI.begin(), WordI.end(), '-') <= 1 && (std::count(WordI.begin(), WordI.end(), '.') + std::count(WordI.begin(), WordI.end(), '-') < WordI.size())){
             tokens.push_back(Token{WordI, TokenTypes::Literal, Line});
             Stream = EatWord(Stream, true);
         }
@@ -164,6 +166,26 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
             Stream = EatChar(Stream);
             break;
         case '/': // Edge cases of "//" and "/*"
+            {
+                Stream = EatChar(Stream);
+                char c2 = GetChar(Stream);
+                if (c2 == '/')
+                {
+                    Stream = EatChar(Stream);
+                    Stream = EatUntil(Stream, std::string("\n"));
+                    Line++;
+                }
+                else if (c2 == '*')
+                {
+                    Stream = EatChar(Stream);
+                    Stream = EatUntil(Stream, std::string("*/"));
+                    Line++;
+                }
+                else
+                {
+                    tokens.push_back(Token{"/", TokenTypes::Operator, Line});
+                }
+            }
             break;
         case '%':
             tokens.push_back(Token{"%", TokenTypes::Operator, Line});
@@ -194,6 +216,13 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         case ':':
             break;
         case '"': // Needs closing
+            {
+                Stream = EatChar(Stream);
+                std::string str = "\"" + GetUntil(Stream, '"') + "\"";
+                std::cout << str << std::endl;
+                tokens.push_back(Token{str, TokenTypes::Literal, Line});
+                Stream = EatUntil(Stream, '"');
+            }
             break;
         case '\'': // Needs closing
             break;

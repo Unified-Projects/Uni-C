@@ -46,7 +46,13 @@ std::string Parsing::EatUntil(const std::string& str, const char& end){
     if(str.size() == 0){
         return "";
     }
-    return str.substr(str.find(end));
+    return str.substr(str.find(end) + 1);
+}
+std::string Parsing::EatUntil(const std::string& str, std::string end){
+    if(str.size() == 0){
+        return "";
+    }
+    return str.substr(str.find(end)+end.size());
 }
 
 std::string Parsing::GetWord(const std::string& str, bool i){

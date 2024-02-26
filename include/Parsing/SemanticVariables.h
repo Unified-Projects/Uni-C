@@ -131,6 +131,7 @@ namespace Parsing
         };
 
         enum SemanticOperationTypes{
+            SemanticOperationScoper,
             SemanticOperationAssignment,
             SemanticOperationAddition,
             SemanticOperationSubtraction,

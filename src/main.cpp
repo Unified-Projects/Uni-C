@@ -68,8 +68,9 @@ int main(int argc, char* argv[]){
             std::cout << "-------- Lexical Analysis --------" << std::endl;
             std::cout << "File: " << file << std::endl;
             std::cout << "Tokens: " << std::endl;
+            int TokenI = 0;
             for(auto& token : analyser->Tokens()){
-                std::cout << "Value: " << token.tokenValue << " Type: " << token.tokenType << std::endl;
+                std::cout << "Value: " << token.tokenValue << " Type: " << token.tokenType << " Index: " << TokenI++ << std::endl;
             }
             std::cout << "------ End Lexical Analysis ------" << std::endl;
         }
@@ -143,6 +144,14 @@ int main(int argc, char* argv[]){
                 std::cout << std::string(depth * 2, ' ') << "Scope: " << scopeVar->LocalScope << ":" << scopeVar->ScopePosition << std::endl;
                 for(auto& child : scopeVar->Block){
                     traverse(child, depth + 1);
+                }
+            }
+            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeOperation){
+                Parsing::SemanticVariables::Operation* scopeVar = (Parsing::SemanticVariables::Operation*)scope;
+                std::cout << std::string(depth * 2, ' ') << "Operation: "  << scopeVar->TypeID <<  " Scope: " << scopeVar->LocalScope << ":" << scopeVar->ScopePosition << std::endl;
+                std::cout << std::string((depth + 1) * 2, ' ') << "Parameters: " << std::endl;
+                for(auto& child : scopeVar->Parameters){
+                    traverse(child, depth + 2);
                 }
             }
             if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeStatement){

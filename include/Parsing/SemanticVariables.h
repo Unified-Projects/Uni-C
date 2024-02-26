@@ -88,7 +88,6 @@ namespace Parsing
         {
             int ReturnTypeID = -1;
             std::string Identifier = "";
-            int LocalScope = -1;
             // SemanticTypes Type = SemanticTypes::SemanticTypeFunction;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeFunction;}
             std::vector<Variable*> Parameters = {};
@@ -129,6 +128,37 @@ namespace Parsing
             std::vector<SemanticVariable*> Block = {};
             // SemanticTypes Type = SemanticTypes::SemanticTypeStatement;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeStatement;}
+        };
+
+        enum SemanticOperationTypes{
+            SemanticOperationAssignment,
+            SemanticOperationAddition,
+            SemanticOperationSubtraction,
+            SemanticOperationMultiplication,
+            SemanticOperationDivision,
+            SemanticOperationModulus,
+            SemanticOperationIncrement,
+            SemanticOperationDecrement,
+            SemanticOperationEqual,
+            SemanticOperationNotEqual,
+            SemanticOperationGreater,
+            SemanticOperationLess,
+            SemanticOperationGreaterEqual,
+            SemanticOperationLessEqual,
+            SemanticOperationAnd,
+            SemanticOperationOr,
+            SemanticOperationNot,
+            SemanticOperationBitwiseAnd,
+            SemanticOperationBitwiseOr,
+            SemanticOperationBitwiseNot,
+            SemanticOperationBitwiseXor,
+            SemanticOperationBitwiseLeftShift,
+            SemanticOperationBitwiseRightShift,
+            SemanticOperationTernary,
+            SemanticOperationFunctionCall,
+            SemanticOperationArrayAccess,
+            SemanticOperationMemberAccess,
+            SemanticOperationPointerAccess
         };
 
         struct Operation : SemanticVariable

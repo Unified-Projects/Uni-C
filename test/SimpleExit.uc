@@ -6,5 +6,6 @@ struct Fun{
 
 int main(){
     int testVar = 5;
+    testVar = 4;
     return testVar;
 }

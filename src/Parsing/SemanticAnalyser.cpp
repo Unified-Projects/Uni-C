@@ -37,6 +37,301 @@ std::map<int, SemanticVariable*> SemanticScopeMap = {
     // ScopePosition : Scope
 };
 
+int EvaluateOperands(Operation* Opeartion, LexicalAnalyser* Lexer, int* tokenStart){
+    int i = *tokenStart;
+
+    // Find Distance to line end
+    int LineEnd = -1;
+    for(int j = i; j < Lexer->Tokens().size(); j++){
+        if(Lexer->getToken(j).tokenType == TokenTypes::LineEnd){
+            LineEnd = j;
+            break;
+        }
+    }
+
+    if(LineEnd == -1){
+        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i).fileLine << std::endl;
+        return -1;
+    }
+    else if(LineEnd == i){
+        std::cerr << "Error: Expected Operand at line " << Lexer->getToken(i).fileLine << std::endl;
+        return -1;
+    }
+
+    Token Operand = Lexer->getToken(i);
+    switch (Operand.tokenType)
+    {
+    case TokenTypes::Literal:
+        {
+            // Load literal
+            SemLiteral* lit = new SemLiteral();
+            lit->Value = Operand.tokenValue;
+            // TODO Custom Intialisers
+            if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
+                lit->TypeID = SemanticTypeMap["int"].TypeID;
+            }
+            else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
+                lit->TypeID = SemanticTypeMap["double"].TypeID;
+            }
+            else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
+                lit->TypeID = SemanticTypeMap["bool"].TypeID;
+            }
+            // else if(lit->Value[0] == "\"" && lit->Value.ends_with("\"")){
+            //     // TODO STRINGS
+            // }
+            else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
+                lit->TypeID = SemanticTypeMap["char"].TypeID;
+            }
+            else{
+                std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i).fileLine << std::endl;
+                return -1;
+            }
+            lit->LocalScope = Opeartion->LocalScope;
+            lit->ScopePosition = Opeartion->Parent->NextScopePosition++;
+            lit->Parent = Opeartion;
+        
+            Opeartion->Parameters.push_back(lit);
+
+            i++;
+        }
+        break;
+    case TokenTypes::Identifier:
+        {
+            // Load variable reference
+            VariableRef* id = new VariableRef();
+            id->Identifier = Operand.tokenValue;
+            id->ParentScope = Opeartion->LocalScope;
+            id->LocalScope = Opeartion->LocalScope;
+            id->ScopePosition = Opeartion->Parent->NextScopePosition++;
+            id->Parent = Opeartion;
+
+            Opeartion->Parameters.push_back(id);
+
+            i++;
+        }
+        break;
+    
+    default:
+        break;
+    }
+
+    if(LineEnd - i > 1){
+        // TODO RPN
+    }
+    // TODO RPN
+
+    tokenStart[0] = i;
+
+    return 0;
+}
+
+SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart){
+    int i = *tokenStart;
+    Token token = Lexer->getToken(i);
+
+    SemanticVariable* Result = nullptr;
+
+    switch (token.tokenType)
+    {
+    case TokenTypes::TypeDef:
+        {   
+            // Start building variable
+            Variable* var = new Variable();
+            var->ParentScope = Parent->LocalScope;
+            var->LocalScope = Parent->LocalScope;
+            var->ScopePosition = Parent->NextScopePosition++;
+            var->Parent = Parent;
+
+            // Get Identifier
+            if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
+                var->Identifier = Lexer->getToken(i+1).tokenValue;
+            }
+            else{
+                std::cerr << "Error: Expected Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                return nullptr;
+            }
+
+            // Get Type
+            var->TypeID = SemanticTypeMap[Lexer->getToken(i).tokenValue].TypeID;
+
+            // Initial Value If Present
+            if(Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){ // Unless Value!! // TODO
+                if(Lexer->getToken(i+2).tokenType == TokenTypes::Operator && Lexer->getToken(i+2).tokenValue == std::string("=")){
+                    if(Lexer->getToken(i+3).tokenType == TokenTypes::Literal){
+                        var->InitValue = Lexer->getToken(i+3).tokenValue;
+                        if(Lexer->getToken(i+4).tokenType != TokenTypes::LineEnd){
+                            std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+4).fileLine << std::endl;
+                            return nullptr;
+                        }
+                    }
+                    else{
+                        std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+3).fileLine << std::endl;
+                        return nullptr;
+                    }
+                }
+                else{
+                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                i+=2; // Skip forwards
+            }
+
+            // Token Index Correction
+            i += 2;
+
+            Store->push_back(var);
+            Result = var;
+        }
+        break;
+
+    case TokenTypes::Identifier:
+        {
+            // Variable Initialisation
+            // TODO Variable Initialisation of custom typeDef
+
+            // Operation
+            // Store Variable
+            std::string VariableName = token.tokenValue;
+
+            // Check for Operation
+            if(Lexer->getToken(i+1).tokenType == TokenTypes::Operator){
+                if(Lexer->getToken(i+1).tokenValue == std::string("=")){ // Assignment
+                    // Create Operator
+                    Operation* op = new Operation();
+                    op->TypeID = SemanticOperationAssignment;
+                    op->ParentScope = Parent->LocalScope;
+                    op->LocalScope = Parent->LocalScope;
+                    op->ScopePosition = Parent->NextScopePosition++;
+                    op->Parent = Parent;
+
+                    i+=2;
+
+                    VariableRef* id = new VariableRef();
+                    id->Identifier = VariableName;
+                    id->ParentScope = op->LocalScope;
+                    id->LocalScope = op->LocalScope;
+                    id->ScopePosition = op->Parent->NextScopePosition++;
+                    id->Parent = op;
+
+                    op->Parameters.push_back(id);
+
+                    // Get Operand
+                    if(EvaluateOperands(op, Lexer, &i)){
+                        std::cerr << "Operator Invalid at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                        return nullptr;
+                    }
+
+                    // Current Token is line end
+                    if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
+                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                        return nullptr;
+                    }
+                    else{
+                        i++;
+                    }
+
+                    Store->push_back(op);
+                    Result = op;
+                }
+                else{
+                    std::cerr << "Opeator not supported '" << Lexer->getToken(i+1).tokenValue << "' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+            }
+        }
+        break;
+
+    case TokenTypes::Statement:
+        {
+            // Statement
+            if(token.tokenValue == std::string("return")){
+                // Should have a literal then a line end or a identifier then a line end
+                if (Lexer->getToken(i+1).tokenType == TokenTypes::Literal || Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
+                    if(Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){
+                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
+                        return nullptr;
+                    }
+
+                    // Valid Return
+                    SemStatement* ret = new SemStatement();
+                    ret->TypeID = SemanticStatementTypes::SemanticStatementReturn;
+                    ret->ParentScope = Parent->LocalScope;
+                    ret->LocalScope = Parent->LocalScope;
+                    ret->ScopePosition = Parent->NextScopePosition++;
+                    ret->Parent = Parent;
+
+                    // Load argument
+                    if(Lexer->getToken(i+1).tokenType == TokenTypes::Literal){
+                        SemLiteral* lit = new SemLiteral();
+                        lit->Value = Lexer->getToken(i+1).tokenValue;
+                        // TODO Custom Intialisers
+                        if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
+                            lit->TypeID = SemanticTypeMap["int"].TypeID;
+                        }
+                        else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
+                            lit->TypeID = SemanticTypeMap["double"].TypeID;
+                        }
+                        else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
+                            lit->TypeID = SemanticTypeMap["bool"].TypeID;
+                        }
+                        // else if(lit->Value[0] == "\"" && lit->Value.ends_with("\"")){
+                        //     // TODO STRINGS
+                        // }
+                        else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
+                            lit->TypeID = SemanticTypeMap["char"].TypeID;
+                        }
+                        else{
+                            std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                            return nullptr;
+                        }
+
+                        lit->ParentScope = ret->LocalScope;
+                        lit->LocalScope = ret->LocalScope;
+                        lit->ScopePosition = ret->Parent->NextScopePosition++;
+                        lit->Parent = ret;
+
+                        ret->Parameters.push_back(lit);
+
+                        i+=3; // Skip forwards
+                    }
+                    else if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
+                        VariableRef* id = new VariableRef();
+                        id->Identifier = Lexer->getToken(i+1).tokenValue;
+                        id->ParentScope = ret->LocalScope;
+                        id->LocalScope = ret->LocalScope;
+                        id->ScopePosition = ret->Parent->NextScopePosition++;
+                        id->Parent = ret;
+
+                        ret->Parameters.push_back(id);
+
+                        i+=3; // Skip forwards
+                    }
+                    else{
+                        std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                        return nullptr;
+                    }
+
+                    Store->push_back(ret);
+                    Result = ret;
+                }
+                else{
+                    std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+            }
+        }
+        break;
+    
+    default:
+        break;
+    }
+
+    tokenStart[0] = i;
+
+    return Result;
+}
+
 SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 {
     this->AnalysisData = AnalysisData;
@@ -486,6 +781,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 
     // Load functions
     {
+        // TODO Fix embeded functions so that they dont get parsed as global functions
         for(auto& function : SemanticFunctionMap){
             // Load Scope
             Scope* LexerScope = SemanticLexerScopeMap[function.second.Lexer];
@@ -522,147 +818,10 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 
             // Load block data
             for(int i = function.second.TokenIndexOfBlockStart + 1; i < function.second.TokenIndexOfBlockEnd; i++){
-                Token token = function.second.Lexer->getToken(i);
-
-                switch (token.tokenType)
-                {
-                case TokenTypes::TypeDef:
-                    {   
-                        // Start building variable
-                        Variable* var = new Variable();
-                        var->ParentScope = func->LocalScope;
-                        var->LocalScope = func->LocalScope;
-                        var->ScopePosition = func->NextScopePosition++;
-                        var->Parent = func;
-
-                        // Get Identifier
-                        if(function.second.Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                            var->Identifier = function.second.Lexer->getToken(i+1).tokenValue;
-                        }
-                        else{
-                            std::cerr << "Error: Expected Identifier at line " << function.second.Lexer->getToken(i+1).fileLine << std::endl;
-                            return;
-                        }
-
-                        // Get Type
-                        var->TypeID = SemanticTypeMap[function.second.Lexer->getToken(i).tokenValue].TypeID;
-
-                        // Initial Value If Present
-                        if(function.second.Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){ // Unless Value!! // TODO
-                            if(function.second.Lexer->getToken(i+2).tokenType == TokenTypes::Operator && function.second.Lexer->getToken(i+2).tokenValue == std::string("=")){
-                                if(function.second.Lexer->getToken(i+3).tokenType == TokenTypes::Literal){
-                                    var->InitValue = function.second.Lexer->getToken(i+3).tokenValue;
-                                    if(function.second.Lexer->getToken(i+4).tokenType != TokenTypes::LineEnd){
-                                        std::cerr << "Error: Expected ';' at line " << function.second.Lexer->getToken(i+4).fileLine << std::endl;
-                                        return;
-                                    }
-                                }
-                                else{
-                                    std::cerr << "Error: Expected Literal at line " << function.second.Lexer->getToken(i+3).fileLine << std::endl;
-                                    return;
-                                }
-                            }
-                            else{
-                                std::cerr << "Error: Expected ';' at line " << function.second.Lexer->getToken(i+2).fileLine << std::endl;
-                                return;
-                            }
-
-                            i+=2; // Skip forwards
-                        }
-
-                        // Token Index Correction
-                        i += 2;
-
-                        func->Block.push_back(var);
-                    }
-                    break;
-
-                case TokenTypes::Identifier:
-                    // Variable Initialisation
-
-                    // Operation
-                    break;
-
-                case TokenTypes::Statement:
-                    // Statement
-                    if(token.tokenValue == std::string("return")){
-                        // Should have a literal then a line end or a identifier then a line end
-                        if (function.second.Lexer->getToken(i+1).tokenType == TokenTypes::Literal || function.second.Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                            if(function.second.Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){
-                                std::cerr << "Error: Expected ';' at line " << function.second.Lexer->getToken(i+2).fileLine << std::endl;
-                                return;
-                            }
-
-                            // Valid Return
-                            SemStatement* ret = new SemStatement();
-                            ret->TypeID = SemanticStatementTypes::SemanticStatementReturn;
-                            ret->ParentScope = func->LocalScope;
-                            ret->LocalScope = func->LocalScope;
-                            ret->ScopePosition = func->NextScopePosition++;
-                            ret->Parent = func;
-
-                            // Load argument
-                            if(function.second.Lexer->getToken(i+1).tokenType == TokenTypes::Literal){
-                                SemLiteral* lit = new SemLiteral();
-                                lit->Value = function.second.Lexer->getToken(i+1).tokenValue;
-                                // TODO Custom Intialisers
-                                if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
-                                    lit->TypeID = SemanticTypeMap["int"].TypeID;
-                                }
-                                else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
-                                    lit->TypeID = SemanticTypeMap["double"].TypeID;
-                                }
-                                else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
-                                    lit->TypeID = SemanticTypeMap["bool"].TypeID;
-                                }
-                                // else if(lit->Value[0] == "\"" && lit->Value.ends_with("\"")){
-                                //     // TODO STRINGS
-                                // }
-                                else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
-                                    lit->TypeID = SemanticTypeMap["char"].TypeID;
-                                }
-                                else{
-                                    std::cerr << "Error: Expected Literal at line " << function.second.Lexer->getToken(i+1).fileLine << std::endl;
-                                    return;
-                                }
-
-                                lit->ParentScope = ret->LocalScope;
-                                lit->LocalScope = ret->LocalScope;
-                                lit->ScopePosition = ret->Parent->NextScopePosition++;
-                                lit->Parent = ret;
-
-                                ret->Parameters.push_back(lit);
-
-                                i+=2; // Skip forwards
-                            }
-                            else if(function.second.Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                                VariableRef* id = new VariableRef();
-                                id->Identifier = function.second.Lexer->getToken(i+1).tokenValue;
-                                id->ParentScope = ret->LocalScope;
-                                id->LocalScope = ret->LocalScope;
-                                id->ScopePosition = ret->Parent->NextScopePosition++;
-                                id->Parent = ret;
-
-                                ret->Parameters.push_back(id);
-
-                                i+=2; // Skip forwards
-                            }
-                            else{
-                                std::cerr << "Error: Expected Literal or Identifier at line " << function.second.Lexer->getToken(i+1).fileLine << std::endl;
-                                return;
-                            }
-
-                            func->Block.push_back(ret);
-                        }
-                        else{
-                            std::cerr << "Error: Expected Literal or Identifier at line " << function.second.Lexer->getToken(i+1).fileLine << std::endl;
-                            return;
-                        }
-                    }
-                    break;
-                
-                default:
-                    break;
+                SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i);
+                if(!Result){
+                    std::cerr << "Error: Invalid Syntax at line " << function.second.Lexer->getToken(i).fileLine << std::endl;
+                    return;
                 }
             }
 

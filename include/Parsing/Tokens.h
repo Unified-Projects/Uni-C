@@ -5,6 +5,7 @@
 namespace Parsing
 {
     enum TokenTypes{
+        NullToken,
         TypeDef,
         Identifier,
         Operator,
@@ -27,6 +28,7 @@ namespace Parsing
     {
         std::string tokenValue = "";
         TokenTypes tokenType = Literal;
+        int fileLine = 0;
     };
     
 } // namespace Parsing

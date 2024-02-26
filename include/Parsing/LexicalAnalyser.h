@@ -15,6 +15,6 @@ namespace Parsing{
 
     public: // Methods
         const std::vector<Token>& Tokens() {return tokens;};
-        const Token& getToken(const int& tokenIndex) {return tokens[tokenIndex];};
+        const Token& getToken(const int& tokenIndex) {static Token NullToken = {"", TokenTypes::NullToken, -1}; if (tokenIndex >= tokens.size()) return NullToken; return tokens[tokenIndex];};
     };
 }

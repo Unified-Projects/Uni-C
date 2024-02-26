@@ -91,3 +91,18 @@ Syntax Design
   Using
     - Namespacing (Later Date)
     - using x : i (Later Date) (Type x is equivenet to Type i)
+
+
+
+Semantic Analysis:
+ - Headers handled Fisrt For Scope Definitions
+
+ - Each file has its own Scope
+ - Each Function has its own Sub-Scope
+ - Classes TBD
+
+ - Make use of Passes
+   - Get all Type Definitions
+   - Gets all Function Declarations
+   - Second will get block data for Type Definitions
+   - Third will do function block data

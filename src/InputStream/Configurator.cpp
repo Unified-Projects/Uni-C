@@ -46,7 +46,7 @@ Configuration::Configuration(int argc, char** argv){
 
         // Clone output file
         if (args->getTokenType(TokenIndex + 1) == 1) { // While the next token is a value
-            output_file = strdup(args->getToken(TokenIndex + 1).c_str());
+            output_file = strdup((args->getToken(TokenIndex + 1) +  + ".asm").c_str());
         }
     }
 

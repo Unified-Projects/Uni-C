@@ -1,3 +1,10 @@
+int x = 1;
+
+struct Fun{
+    int Xy = 4;
+};
+
 int main(){
-    return 0;
+    int testVar = 5;
+    return testVar;
 }

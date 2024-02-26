@@ -37,3 +37,11 @@ build
 
 # Excludes
 !.vscode/launch.json
+
+# Test Files
+test.asm
+test.exe
+test.obj
+linker.ld
+
+*.asm

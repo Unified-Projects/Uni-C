@@ -172,14 +172,12 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
                 if (c2 == '/')
                 {
                     Stream = EatChar(Stream);
-                    Stream = EatUntil(Stream, std::string("\n"));
-                    Line++;
+                    Stream = EatUntil(Stream, std::string("\n"), &Line);
                 }
                 else if (c2 == '*')
                 {
                     Stream = EatChar(Stream);
-                    Stream = EatUntil(Stream, std::string("*/"));
-                    Line++;
+                    Stream = EatUntil(Stream, std::string("*/"), &Line);
                 }
                 else
                 {
@@ -192,8 +190,18 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
             Stream = EatChar(Stream);
             break;
         case '=':
-            tokens.push_back(Token{"=", TokenTypes::Operator, Line});
-            Stream = EatChar(Stream);
+            {
+                // Edge case of next char being "="
+                Stream = EatChar(Stream);
+                if (GetChar(Stream) == '=')
+                {
+                    tokens.push_back(Token{"==", TokenTypes::Operator, Line});
+                    Stream = EatChar(Stream);
+                    break;
+                }
+                tokens.push_back(Token{"=", TokenTypes::Operator, Line});
+                Stream = EatChar(Stream);
+            }
             break;
         case '<':
             break;
@@ -221,7 +229,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
                 std::string str = "\"" + GetUntil(Stream, '"') + "\"";
                 std::cout << str << std::endl;
                 tokens.push_back(Token{str, TokenTypes::Literal, Line});
-                Stream = EatUntil(Stream, '"');
+                Stream = EatUntil(Stream, '"', &Line);
             }
             break;
         case '\'': // Needs closing

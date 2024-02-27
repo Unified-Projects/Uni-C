@@ -15,6 +15,11 @@ struct Fun{
 
 int main(){
     int testVar = 5;
-    testVar = (50/2) + 67 * (92 - 3);
+    testVar = (50/testVar) + 67 * (92 - 3);
+    if(
+        5 == 5
+    ){
+        return 1;
+    }
     return testVar;
 }

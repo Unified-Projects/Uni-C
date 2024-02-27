@@ -156,7 +156,7 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     if(stackTrace->Size() - EntitiesInStack < 2){
                         // TODO allow operations that support 1 argument (Increment, Decrement, etc.)
                         if(CompilerInformation::DebugAll()){
-                            assembly += ";; Operation Stack Load\n";
+                            assembly += ";; Operation Stack Unload\n";
                         }
                         assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "r9");
 
@@ -171,7 +171,7 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 
                     // Get Values
                     if(CompilerInformation::DebugAll()){
-                        assembly += ";; Operation Stack Load\n";
+                        assembly += ";; Operation Stack Unload\n";
                     }
                     assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "r8");
                     assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "r9");

@@ -342,12 +342,12 @@ void RegisterTable::Clear(){
     rsp = {"rsp", "esp", "sp", "sp", "", nullptr, false, false, 0, 0, 0};
     r8  = {"r8",  "r8d", "r8w", "r8b", "", nullptr, false, false, 0, 0, 0};
     r9  = {"r9",  "r9d", "r9w", "r9b", "", nullptr, false, false, 0, 0, 0};
-    r10 = {"r10", "e10", "r10", "r10", "", nullptr, false, false, 0, 0, 0};
-    r11 = {"r11", "e11", "r11", "r11", "", nullptr, false, false, 0, 0, 0};
-    r12 = {"r12", "e12", "r12", "r12", "", nullptr, false, false, 0, 0, 0};
-    r13 = {"r13", "e13", "r13", "r13", "", nullptr, false, false, 0, 0, 0};
-    r14 = {"r14", "e14", "r14", "r14", "", nullptr, false, false, 0, 0, 0};
-    r15 = {"r15", "e15", "r15", "r15", "", nullptr, false, false, 0, 0, 0};
+    r10 = {"r10", "r10d", "r10w", "r10b", "", nullptr, false, false, 0, 0, 0};
+    r11 = {"r11", "r11d", "r11w", "r11b", "", nullptr, false, false, 0, 0, 0};
+    r12 = {"r12", "r12d", "r12w", "r12b", "", nullptr, false, false, 0, 0, 0};
+    r13 = {"r13", "r13d", "r13w", "r13b", "", nullptr, false, false, 0, 0, 0};
+    r14 = {"r14", "r14d", "r14w", "r14b", "", nullptr, false, false, 0, 0, 0};
+    r15 = {"r15", "r15d", "r15w", "r15b", "", nullptr, false, false, 0, 0, 0};
 }
 
 std::string RegisterTable::MovReg(std::string r1, std::string r2){

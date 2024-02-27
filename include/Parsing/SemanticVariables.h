@@ -131,15 +131,6 @@ namespace Parsing
         };
 
         enum SemanticOperationTypes{
-            SemanticOperationScoper,
-            SemanticOperationAssignment,
-            SemanticOperationAddition,
-            SemanticOperationSubtraction,
-            SemanticOperationMultiplication,
-            SemanticOperationDivision,
-            SemanticOperationModulus,
-            SemanticOperationIncrement,
-            SemanticOperationDecrement,
             SemanticOperationEqual,
             SemanticOperationNotEqual,
             SemanticOperationGreater,
@@ -159,7 +150,16 @@ namespace Parsing
             SemanticOperationFunctionCall,
             SemanticOperationArrayAccess,
             SemanticOperationMemberAccess,
-            SemanticOperationPointerAccess
+            SemanticOperationPointerAccess,
+            SemanticOperationScoper,
+            SemanticOperationAssignment,
+            SemanticOperationAddition,
+            SemanticOperationSubtraction,
+            SemanticOperationMultiplication,
+            SemanticOperationDivision,
+            SemanticOperationModulus,
+            SemanticOperationIncrement,
+            SemanticOperationDecrement
         };
 
         struct Operation : SemanticVariable

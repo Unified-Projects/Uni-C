@@ -42,16 +42,28 @@ std::string Parsing::EatWord(const std::string& str, bool i){
     return str.substr(pos);
 }
 
-std::string Parsing::EatUntil(const std::string& str, const char& end){
+std::string Parsing::EatUntil(const std::string& str, const char& end, int* newLines){
     if(str.size() == 0){
         return "";
     }
-    return str.substr(str.find(end) + 1);
+    size_t pos = str.find(end) + 1;
+    if(pos == std::string::npos){
+        newLines[0] += std::count(str.begin(), str.end(), '\n');
+        return "";
+    }
+    newLines[0] += std::count(str.begin(), str.begin() + pos, '\n');
+    return str.substr(pos);
 }
-std::string Parsing::EatUntil(const std::string& str, std::string end){
+std::string Parsing::EatUntil(const std::string& str, std::string end, int* newLines){
     if(str.size() == 0){
         return "";
     }
+    size_t pos = str.find(end) + end.size();
+    if(pos == std::string::npos){
+        newLines[0] += std::count(str.begin(), str.end(), '\n');
+        return "";
+    }
+    newLines[0] += std::count(str.begin(), str.begin() + pos, '\n');
     return str.substr(str.find(end)+end.size());
 }
 

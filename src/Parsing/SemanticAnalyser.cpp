@@ -68,14 +68,14 @@ std::map<int, SemanticVariable*> SemanticScopeMap = {
     // ScopePosition : Scope
 };
 
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart){
+int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0){
     int i = *tokenStart;
 
     // Find Distance to line end
     int LineEnd = -1;
     for(int j = i; j < Lexer->Tokens().size(); j++){
-        if(Lexer->getToken(j).tokenType == TokenTypes::LineEnd){
-            LineEnd = j;
+        if(Lexer->getToken(j).tokenType == end){
+            LineEnd = j - EndOffset;
             break;
         }
     }
@@ -92,6 +92,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
     std::stack<Operation*> OperatorStack = {};
 
     while(i < LineEnd){
+
         Token Operand = Lexer->getToken(i);
         switch (Operand.tokenType)
         {
@@ -391,6 +392,81 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     return nullptr;
                 }
             }
+            else if (token.tokenValue == "if"){
+                // Create A Statememt
+                SemStatement* ifStatement = new SemStatement();
+                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementIf;
+                ifStatement->ParentScope = Parent->LocalScope;
+                ifStatement->LocalScope = Parent->LocalScope;
+                ifStatement->ScopePosition = Parent->NextScopePosition++;
+                ifStatement->Parent = Parent;
+
+                // Get Condition
+                if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
+                    std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                i+=2;
+
+                Operation* op = new Operation();
+                op->TypeID = SemanticOperationScoper;
+                op->ParentScope = ifStatement->LocalScope;
+                op->LocalScope = ifStatement->LocalScope;
+                op->Parent = ifStatement;
+
+                // Operation
+                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+
+                // Add operation to ifStatement
+                ifStatement->Parameters.push_back(op);
+
+                // Check for argument end
+                if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
+                    std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
+                    return nullptr;
+                }
+                i++;
+
+                // Check for block start
+                if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
+                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                // Check for block end
+                int blockStart = i;
+                int blockEnd = -1;
+                int blockDepth = 0;
+                for(int j = i+1; j < Lexer->Tokens().size(); j++){
+                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+                        blockEnd = j;
+                        break;
+                    }
+                    else{
+                        blockDepth++;
+                    }
+                }
+                i++;
+                
+                // Interpret block data
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+
+                // Non-Ended
+                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                // Load to the parent block
+                Store->push_back(ifStatement);
+                Result = ifStatement;
+            }
+            else{
+                std::cerr << "Statement not supported '" << token.tokenValue << "' at line " << token.fileLine << std::endl;
+                return nullptr;
+            
+            }
         }
         break;
     
@@ -605,6 +681,8 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 
                 // TODO Achnowledge if in struct and if so change scope
 
+                int Depth = 0;
+
                 /*
                     Type Identifier (Parameters) {}
                 */ 
@@ -678,7 +756,10 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                                 int blockEnd = -1;
                                 int blockDepth = 0;
                                 for(int j = blockStart + 1; j < Lexer->Tokens().size(); j++){
-                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockStart){
+                                        Depth++;
+                                    }
+                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd && Depth-- == 0){
                                         blockEnd = j;
                                         break;
                                     }
@@ -686,6 +767,8 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                                         blockDepth++;
                                     }
                                 }
+
+                                Depth = 0;
 
                                 // Non-Ended
                                 if(blockEnd == -1){
@@ -890,6 +973,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
             // Load block data
             for(int i = function.second.TokenIndexOfBlockStart + 1; i < function.second.TokenIndexOfBlockEnd; i++){
                 SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i);
+                std::cout << "Value: " << function.second.Lexer->getToken(i).tokenValue << " Line: " << function.second.Lexer->getToken(i).fileLine << std::endl;
                 if(!Result){
                     std::cerr << "Error: Invalid Syntax at line " << function.second.Lexer->getToken(i).fileLine << std::endl;
                     return;

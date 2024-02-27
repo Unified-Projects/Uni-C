@@ -84,19 +84,16 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
             {
             case SemanticStatementReturn:
                 {
+                    if(CompilerInformation::DebugAll()){
+                        assembly += ";; Return Operation\n";
+                    }
                     for(auto& Params : ((SemStatement*)Block)->Parameters){
                         if(Params->Type() == SemanticTypeOperation){
-                            if(CompilerInformation::DebugAll()){
-                                assembly += "\n";
-                                assembly += ";; Return Operation\n";
-                            }
-
                             assembly += ConvertGeneric(Params, IndentCount+1);
                         }
                         else if(Params->Type() == SemanticTypeLiteral){
                             // Check if it is in data (Could be a string not a number) (Use ID to find it)
                             if(CompilerInformation::DebugAll()){
-                                assembly += "\n";
                                 assembly += ";; Return Literal\n";
                             }
 
@@ -116,7 +113,6 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                             if(var != nullptr){
                                 if(var->InitValue != ""){
                                     if(CompilerInformation::DebugAll()){
-                                        assembly += "\n";
                                         assembly += ";; Return Variable\n";
                                     }
 
@@ -131,10 +127,49 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                         }
                     }
                     assembly += std::string(IndentCount*4, ' ') + "ret\n";
-
+                }
+                break;
+            
+            case SemanticStatementIf:
+                {
                     if(CompilerInformation::DebugAll()){
-                        assembly += "\n";
+                        assembly += ";; If Statement\n";
                     }
+
+                    // Load Condition
+                    if(((SemStatement*)Block)->Parameters.size() > 0){
+                        for(auto& Params : ((SemStatement*)Block)->Parameters){
+                            if(Params->Type() == SemanticTypeOperation){
+                                assembly += ConvertGeneric(Params, IndentCount+1);
+                            }
+                        }
+                    }
+                    else{
+                        std::cerr << "If Statement Without Condition" << std::endl;
+                        return assembly;
+                    }
+
+                    // Now Compare Stack Value to 1
+                    assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "rax");
+                    assembly += std::string(IndentCount*4, ' ') + "cmp rax, 1\n";
+                    // If not true, jump to end
+                    assembly += std::string(IndentCount*4, ' ') + "jne IfEnd_" + GetSymbol(Block) + "\n";
+
+                    assembly += std::string(IndentCount*4, ' ') + "IfStart_" + GetSymbol(Block) + ":\n";
+
+                    // Load Block
+                    if(((SemStatement*)Block)->Block.size() > 0){
+                        for(auto& Lines : ((SemStatement*)Block)->Block){
+                            assembly += ConvertGeneric(Lines, IndentCount+1);
+                        }
+                    }
+                    else{
+                        std::cerr << "If Statement Without Block" << std::endl;
+                        return assembly;
+                    }
+
+                    // End of If
+                    assembly += std::string(IndentCount*4, ' ') + "IfEnd_" + GetSymbol(Block) + ":\n";
                 }
                 break;
             
@@ -262,6 +297,106 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                         std::cerr << "Assignment to Non-Variable" << std::endl;
                                         return assembly;
                                     }
+                                }
+                                break;
+
+                            case SemanticOperationEqual:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Equal Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "sete al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationNotEqual:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Not Equal Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "setne al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationLess:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Less Than Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "setl al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationGreater:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Greater Than Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "setg al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationLessEqual:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Less Than or Equal Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "setle al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationGreaterEqual:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Greater Than or Equal Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "cmp r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "setge al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx r9, al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+
+                            case SemanticOperationAnd:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; And Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "and r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
+                                }
+                                break;
+                            
+                            case SemanticOperationOr:
+                                {
+                                    if(CompilerInformation::DebugAll()){
+                                        assembly += ";; Or Operation\n";
+                                    }
+
+                                    assembly += std::string(IndentCount*4, ' ') + "or r9, r8\n";
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r9");
                                 }
                                 break;
                             

@@ -227,7 +227,6 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
             {
                 Stream = EatChar(Stream);
                 std::string str = "\"" + GetUntil(Stream, '"') + "\"";
-                std::cout << str << std::endl;
                 tokens.push_back(Token{str, TokenTypes::Literal, Line});
                 Stream = EatUntil(Stream, '"', &Line);
             }

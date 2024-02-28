@@ -165,6 +165,10 @@ int main(int argc, char* argv[]){
                 for(auto& child : statement->Block){
                     traverse(child, depth + 2);
                 }
+                std::cout << std::string((depth + 1) * 2, ' ') << "Alternatives: " << std::endl;
+                for(auto& child : statement->Alternatives){
+                    traverse(child, depth + 2);
+                }
             }
         };
         traverse(semanticAnalyser->getRootScope(), 0);

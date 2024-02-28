@@ -148,7 +148,7 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     if(((SemStatement*)Block)->Parameters.size() > 0){
                         for(auto& Params : ((SemStatement*)Block)->Parameters){
                             if(Params->Type() == SemanticTypeOperation){
-                                assembly += ConvertGeneric(Params, IndentCount+1);
+                                assembly += ConvertGeneric(Params, IndentCount);
                             }
                         }
                     }
@@ -160,8 +160,67 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     // Now Compare Stack Value to 1
                     assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "rax");
                     assembly += std::string(IndentCount*4, ' ') + "cmp rax, 1\n";
+                    
+                    if(((SemStatement*)Block)->Alternatives.size() >= 0){
+                        // We need to jump to the If start
+                        assembly += std::string(IndentCount*4, ' ') + "je IfStart_" + GetSymbol(Block) + "\n";
+                    }
+
+                    // Others
+                    for(auto& Alternate : ((SemStatement*)Block)->Alternatives){
+                        if(Alternate->Type() == SemanticTypeStatement){
+                            SemStatement* SemState = (SemStatement*)Alternate;
+
+                            if(SemState->TypeID == SemanticStatementElseIf){
+                                if(CompilerInformation::DebugAll()){
+                                    assembly += ";; Else If Statement\n";
+                                }
+
+                                // Load Condition
+                                if(SemState->Parameters.size() > 0){
+                                    for(auto& Params : SemState->Parameters){
+                                        if(Params->Type() == SemanticTypeOperation){
+                                            assembly += ConvertGeneric(Params, IndentCount);
+                                        }
+                                    }
+                                }
+                                else{
+                                    std::cerr << "Else If Statement Without Condition" << std::endl;
+                                    return assembly;
+                                }
+
+                                // Now Compare Stack Value to 1
+                                assembly += std::string(IndentCount*4, ' ') + registerTable->PullFromStack(stackTrace, "rax");
+                                assembly += std::string(IndentCount*4, ' ') + "cmp rax, 1\n";
+
+                                assembly += std::string(IndentCount*4, ' ') + "je ElseIfStart_" + GetSymbol(Alternate) + "\n";
+                            }
+                            else if(SemState->TypeID == SemanticStatementElse){
+                                if(CompilerInformation::DebugAll()){
+                                    assembly += ";; Else Statement\n";
+                                }
+
+                                // Load Block
+                                if(SemState->Block.size() > 0){
+                                    for(auto& Lines : SemState->Block){
+                                        assembly += ConvertGeneric(Lines, IndentCount + 1);
+                                    }
+                                }
+                                else{
+                                    std::cerr << "Else Statement Without Block" << std::endl;
+                                    return assembly;
+                                }
+
+                                // End of If
+                                assembly += std::string(IndentCount*4, ' ') + "jmp IfEnd_" + GetSymbol(Block) + "\n";
+                            }
+                        }
+                    }
+
                     // If not true, jump to end
-                    assembly += std::string(IndentCount*4, ' ') + "jne IfEnd_" + GetSymbol(Block) + "\n";
+                    if(((SemStatement*)Block)->Alternatives.size() == 0){
+                        assembly += std::string(IndentCount*4, ' ') + "jne IfEnd_" + GetSymbol(Block) + "\n";
+                    }
 
                     assembly += std::string(IndentCount*4, ' ') + "IfStart_" + GetSymbol(Block) + ":\n";
 
@@ -174,6 +233,18 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     else{
                         std::cerr << "If Statement Without Block" << std::endl;
                         return assembly;
+                    }
+
+                    // Others
+                    for(auto& Alternate : ((SemStatement*)Block)->Alternatives){
+                        if(((SemStatement*)Alternate)->TypeID == SemanticStatementElse){
+                            continue; // Dont load else twice
+                        }
+                        assembly += std::string(IndentCount*4, ' ') + "jmp IfEnd_" + GetSymbol(Block) + "\n";
+                        assembly += std::string(IndentCount*4, ' ') + "ElseIfStart_" + GetSymbol(Alternate) + ":\n";
+                        for(auto& Lines : ((SemStatement*)Alternate)->Block){
+                            assembly += ConvertGeneric(Lines, IndentCount+1);
+                        }
                     }
 
                     // End of If

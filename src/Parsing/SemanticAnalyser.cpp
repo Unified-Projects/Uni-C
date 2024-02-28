@@ -178,6 +178,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                 op->TypeID = SemanticOperationScoper;
                 op->ParentScope = OpParent->LocalScope;
                 op->LocalScope = OpParent->LocalScope;
+                op->ScopePosition = OpParent->NextScopePosition++;
                 op->Parent = OpParent;
 
                 OperatorStack.push(op);
@@ -413,6 +414,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->TypeID = SemanticOperationScoper;
                 op->ParentScope = ifStatement->LocalScope;
                 op->LocalScope = ifStatement->LocalScope;
+                op->ScopePosition = ifStatement->NextScopePosition++;
                 op->Parent = ifStatement;
 
                 // Operation
@@ -463,123 +465,133 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 Result = ifStatement;
 
                 // Do we have a else or a else if
-                while(Lexer->getToken(i).tokenType == TokenTypes::Statement && ( Lexer->getToken(i).tokenValue == "else if" ||  Lexer->getToken(i).tokenValue == "else")){
+                while(Lexer->getToken(i+1).tokenType == TokenTypes::Statement && Lexer->getToken(i+1).tokenValue == "else"){
+                    i++;
                     Evaluate(ifStatement, &ifStatement->Alternatives, Lexer, &i);
                 }
             }
-            // else if(token.tokenValue == "else" && Lexer->getToken(i+1).tokenValue == "if" && Lexer->getToken(i+1).tokenType == TokenTypes::Statement){
-            //     // Create A Statememt
-            //     SemStatement* ifStatement = new SemStatement();
-            //     ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElseIf;
-            //     ifStatement->ParentScope = Parent->LocalScope;
-            //     ifStatement->LocalScope = Parent->LocalScope;
-            //     ifStatement->ScopePosition = Parent->NextScopePosition++;
-            //     ifStatement->Parent = Parent;
+            else if(token.tokenValue == "else" && Lexer->getToken(i+1).tokenValue == "if" && Lexer->getToken(i+1).tokenType == TokenTypes::Statement){
+                i++;
 
-            //     // Get Condition
-            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
-            //         std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-            //         return nullptr;
-            //     }
+                // Check that this is not after a else
+                if(Store->size() > 0 && Store->back()->Type() == SemanticTypeStatement && ((SemStatement*)Store->back())->TypeID == SemanticStatementTypes::SemanticStatementElse){
+                    std::cerr << "Error: Else If after Else at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
 
-            //     i+=2;
+                // Create A Statememt
+                SemStatement* ifStatement = new SemStatement();
+                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElseIf;
+                ifStatement->ParentScope = Parent->LocalScope;
+                ifStatement->LocalScope = Parent->LocalScope;
+                ifStatement->ScopePosition = Parent->NextScopePosition++;
+                ifStatement->Parent = Parent;
 
-            //     Operation* op = new Operation();
-            //     op->TypeID = SemanticOperationScoper;
-            //     op->ParentScope = ifStatement->LocalScope;
-            //     op->LocalScope = ifStatement->LocalScope;
-            //     op->Parent = ifStatement;
+                // Get Condition
+                if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
+                    std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
 
-            //     // Operation
-            //     EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+                i+=2;
 
-            //     // Add operation to ifStatement
-            //     ifStatement->Parameters.push_back(op);
+                Operation* op = new Operation();
+                op->TypeID = SemanticOperationScoper;
+                op->ParentScope = ifStatement->LocalScope;
+                op->LocalScope = ifStatement->LocalScope;
+                op->ScopePosition = ifStatement->NextScopePosition++;
+                op->Parent = ifStatement;
 
-            //     // Check for argument end
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
-            //         std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
-            //         return nullptr;
-            //     }
-            //     i++;
+                // Operation
+                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
 
-            //     // Check for block start
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
-            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-            //         return nullptr;
-            //     }
+                // Add operation to ifStatement
+                ifStatement->Parameters.push_back(op);
 
-            //     // Check for block end
-            //     int blockStart = i;
-            //     int blockEnd = -1;
-            //     int blockDepth = 0;
-            //     for(int j = i+1; j < Lexer->Tokens().size(); j++){
-            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-            //             blockEnd = j;
-            //             break;
-            //         }
-            //         else{
-            //             blockDepth++;
-            //         }
-            //     }
-            //     i++;
+                // Check for argument end
+                if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
+                    std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
+                    return nullptr;
+                }
+                i++;
+
+                // Check for block start
+                if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
+                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                // Check for block end
+                int blockStart = i;
+                int blockEnd = -1;
+                int blockDepth = 0;
+                for(int j = i+1; j < Lexer->Tokens().size(); j++){
+                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+                        blockEnd = j;
+                        break;
+                    }
+                    else{
+                        blockDepth++;
+                    }
+                }
+                i++;
                 
-            //     // Interpret block data
-            //     Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+                // Interpret block data
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
 
-            //     // Non-Ended
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-            //         return nullptr;
-            //     }
+                // Non-Ended
+                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+                    return nullptr;
+                }
 
-            //     // Load to the parent block
-            //     Store->push_back(ifStatement);
-            //     Result = ifStatement;
-            // }
-            // else if(token.tokenValue == "else"){
-            //     // Create A Statememt
-            //     SemStatement* ifStatement = new SemStatement();
-            //     ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElse;
-            //     ifStatement->ParentScope = Parent->LocalScope;
-            //     ifStatement->LocalScope = Parent->LocalScope;
-            //     ifStatement->ScopePosition = Parent->NextScopePosition++;
-            //     ifStatement->Parent = Parent;
+                // Load to the parent block
+                Store->push_back(ifStatement);
+                Result = ifStatement;
+            }
+            else if(token.tokenValue == "else"){
+                // Create A Statememt
+                SemStatement* ifStatement = new SemStatement();
+                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElse;
+                ifStatement->ParentScope = Parent->LocalScope;
+                ifStatement->LocalScope = Parent->LocalScope;
+                ifStatement->ScopePosition = Parent->NextScopePosition++;
+                ifStatement->Parent = Parent;
 
-            //     // Check for block start
-            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::BlockStart){
-            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-            //         return nullptr;
-            //     }
+                // Check for block start
+                if(Lexer->getToken(i+1).tokenType != TokenTypes::BlockStart){
+                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
 
-            //     // Check for block end
-            //     int blockStart = i+1;
-            //     int blockEnd = -1;
-            //     int blockDepth = 0;
-            //     for(int j = i+2; j < Lexer->Tokens().size(); j++){
-            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-            //             blockEnd = j;
-            //             break;
-            //         }
-            //         else{
-            //             blockDepth++;
-            //         }
-            //     }
-            //     i+=2;
+                // Check for block end
+                int blockStart = i+1;
+                int blockEnd = -1;
+                int blockDepth = 0;
+                for(int j = i+2; j < Lexer->Tokens().size(); j++){
+                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+                        blockEnd = j;
+                        break;
+                    }
+                    else{
+                        blockDepth++;
+                    }
+                }
+                i+=2;
                 
-            //     // Interpret block data
-            //     Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+                // Interpret block data
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
 
-            //     // Non-Ended
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-            //         return nullptr;
-            //     }
+                // Non-Ended
+                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+                    return nullptr;
+                }
 
-            //     // Load to the parent block
-            //     Store->push_back(ifStatement);
-            //     Result = ifStatement;
-            // }
+                // Load to the parent block
+                Store->push_back(ifStatement);
+                Result = ifStatement;
+            }
             // else if(token.tokenValue == "while"){
             //     // Create A Statememt
             //     SemStatement* whileStatement = new SemStatement();
@@ -601,6 +613,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
             //     op->TypeID = SemanticOperationScoper;
             //     op->ParentScope = whileStatement->LocalScope;
             //     op->LocalScope = whileStatement->LocalScope;
+            //     op->ScopePosition = ifStatement->NextScopePosition++;
             //     op->Parent = whileStatement;
                 
             //     // Operation
@@ -1162,7 +1175,6 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
             // Load block data
             for(int i = function.second.TokenIndexOfBlockStart + 1; i < function.second.TokenIndexOfBlockEnd; i++){
                 SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i);
-                std::cout << "Value: " << function.second.Lexer->getToken(i).tokenValue << " Line: " << function.second.Lexer->getToken(i).fileLine << std::endl;
                 if(!Result){
                     std::cerr << "Error: Invalid Syntax at line " << function.second.Lexer->getToken(i).fileLine << std::endl;
                     return;

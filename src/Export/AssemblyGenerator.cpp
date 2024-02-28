@@ -8,6 +8,14 @@ using namespace Parsing::SemanticVariables;
 
 #include <iostream>
 
+/*
+Optimisation plans
+
+Build a get free regsiter function
+and a get (variable) function that will return a register if it is in a register, remove it from the stack and put it in a register
+It will move around registers and move them into stacks if they are not needed
+*/
+
 extern std::map<std::string, SemanticTypeDefinition> SemanticTypeMap;
 
 /*
@@ -456,10 +464,10 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                 }
             }
 
-            if(stackTrace->Size() - EntitiesInStack >= 1){
-                std::cerr << "Incomplete Operations" << std::endl;
-                return assembly;
-            }
+            // if(stackTrace->Size() - EntitiesInStack >= 1){
+            //     std::cerr << "Incomplete Operations" << std::endl;
+            //     return assembly;
+            // }
         }
         break;
 

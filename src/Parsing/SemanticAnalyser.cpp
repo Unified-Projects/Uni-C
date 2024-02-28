@@ -461,7 +461,196 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 // Load to the parent block
                 Store->push_back(ifStatement);
                 Result = ifStatement;
+
+                // Do we have a else or a else if
+                while(Lexer->getToken(i).tokenType == TokenTypes::Statement && ( Lexer->getToken(i).tokenValue == "else if" ||  Lexer->getToken(i).tokenValue == "else")){
+                    Evaluate(ifStatement, &ifStatement->Alternatives, Lexer, &i);
+                }
             }
+            // else if(token.tokenValue == "else" && Lexer->getToken(i+1).tokenValue == "if" && Lexer->getToken(i+1).tokenType == TokenTypes::Statement){
+            //     // Create A Statememt
+            //     SemStatement* ifStatement = new SemStatement();
+            //     ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElseIf;
+            //     ifStatement->ParentScope = Parent->LocalScope;
+            //     ifStatement->LocalScope = Parent->LocalScope;
+            //     ifStatement->ScopePosition = Parent->NextScopePosition++;
+            //     ifStatement->Parent = Parent;
+
+            //     // Get Condition
+            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
+            //         std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     i+=2;
+
+            //     Operation* op = new Operation();
+            //     op->TypeID = SemanticOperationScoper;
+            //     op->ParentScope = ifStatement->LocalScope;
+            //     op->LocalScope = ifStatement->LocalScope;
+            //     op->Parent = ifStatement;
+
+            //     // Operation
+            //     EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+
+            //     // Add operation to ifStatement
+            //     ifStatement->Parameters.push_back(op);
+
+            //     // Check for argument end
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
+            //         std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+            //     i++;
+
+            //     // Check for block start
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
+            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Check for block end
+            //     int blockStart = i;
+            //     int blockEnd = -1;
+            //     int blockDepth = 0;
+            //     for(int j = i+1; j < Lexer->Tokens().size(); j++){
+            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+            //             blockEnd = j;
+            //             break;
+            //         }
+            //         else{
+            //             blockDepth++;
+            //         }
+            //     }
+            //     i++;
+                
+            //     // Interpret block data
+            //     Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+
+            //     // Non-Ended
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Load to the parent block
+            //     Store->push_back(ifStatement);
+            //     Result = ifStatement;
+            // }
+            // else if(token.tokenValue == "else"){
+            //     // Create A Statememt
+            //     SemStatement* ifStatement = new SemStatement();
+            //     ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElse;
+            //     ifStatement->ParentScope = Parent->LocalScope;
+            //     ifStatement->LocalScope = Parent->LocalScope;
+            //     ifStatement->ScopePosition = Parent->NextScopePosition++;
+            //     ifStatement->Parent = Parent;
+
+            //     // Check for block start
+            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::BlockStart){
+            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Check for block end
+            //     int blockStart = i+1;
+            //     int blockEnd = -1;
+            //     int blockDepth = 0;
+            //     for(int j = i+2; j < Lexer->Tokens().size(); j++){
+            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+            //             blockEnd = j;
+            //             break;
+            //         }
+            //         else{
+            //             blockDepth++;
+            //         }
+            //     }
+            //     i+=2;
+                
+            //     // Interpret block data
+            //     Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+
+            //     // Non-Ended
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Load to the parent block
+            //     Store->push_back(ifStatement);
+            //     Result = ifStatement;
+            // }
+            // else if(token.tokenValue == "while"){
+            //     // Create A Statememt
+            //     SemStatement* whileStatement = new SemStatement();
+            //     whileStatement->TypeID = SemanticStatementTypes::SemanticStatementWhile;
+            //     whileStatement->ParentScope = Parent->LocalScope;
+            //     whileStatement->LocalScope = Parent->LocalScope;
+            //     whileStatement->ScopePosition = Parent->NextScopePosition++;
+            //     whileStatement->Parent = Parent;
+
+            //     // Get Condition
+            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
+            //         std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     i+=2;
+
+            //     Operation* op = new Operation();
+            //     op->TypeID = SemanticOperationScoper;
+            //     op->ParentScope = whileStatement->LocalScope;
+            //     op->LocalScope = whileStatement->LocalScope;
+            //     op->Parent = whileStatement;
+                
+            //     // Operation
+            //     EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+
+            //     // Add operation to whileStatement
+            //     whileStatement->Parameters.push_back(op);
+
+            //     // Check for argument end
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
+            //         std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+            //     i++;
+
+            //     // Check for block start
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
+            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Check for block end
+            //     int blockStart = i;
+            //     int blockEnd = -1;
+            //     int blockDepth = 0;
+                
+            //     for(int j = i+1; j < Lexer->Tokens().size(); j++){
+            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
+            //             blockEnd = j;
+            //             break;
+            //         }
+            //         else{
+            //             blockDepth++;
+            //         }
+            //     }
+            //     i++;
+
+            //     // Interpret block data
+            //     Evaluate(whileStatement, &whileStatement->Block, Lexer, &i);
+
+            //     // Non-Ended
+            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
+            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
+            //         return nullptr;
+            //     }
+
+            //     // Load to the parent block
+            //     Store->push_back(whileStatement);
+            //     Result = whileStatement;
+            // }
             else{
                 std::cerr << "Statement not supported '" << token.tokenValue << "' at line " << token.fileLine << std::endl;
                 return nullptr;

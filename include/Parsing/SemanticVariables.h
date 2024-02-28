@@ -114,6 +114,7 @@ namespace Parsing
             SemanticStatementBreak,
             SemanticStatementContinue,
             SemanticStatementElse,
+            SemanticStatementElseIf,
             SemanticStatementSwitch,
             SemanticStatementCase,
             SemanticStatementDefault,
@@ -126,6 +127,7 @@ namespace Parsing
             SemanticStatementTypes TypeID = SemanticStatementNULL;
             std::vector<SemanticVariable*> Parameters = {};
             std::vector<SemanticVariable*> Block = {};
+            std::vector<SemanticVariable*> Alternatives = {};
             // SemanticTypes Type = SemanticTypes::SemanticTypeStatement;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeStatement;}
         };

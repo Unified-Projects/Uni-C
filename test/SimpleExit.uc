@@ -1,11 +1,8 @@
 int main(){
-    if(5 == 4){
+    int i = -1;
+    i = i + 2 * (3 * 4);
+    if(i + 1 == 24) {
         return 1;
     }
-    else if(5 == 3){
-        return 2;
-    }
-    else{
-        return 3;
-    }
+    return i;
 }

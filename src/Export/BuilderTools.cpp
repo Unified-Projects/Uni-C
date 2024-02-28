@@ -50,12 +50,28 @@ RegisterValue StackTrace::Pop(){
 
     return stack[stackSize];
 }
+RegisterValue StackTrace::Pop(int index){
+    if(stackSize < index+1 || index < 0){
+        return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+    }
+
+    return stack[index];
+
+}
 RegisterValue StackTrace::Peek(){
     if(stackSize == 0){
         return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
     }
 
     return stack[stackSize-1];
+}
+RegisterValue StackTrace::Peek(int index){
+    if(stackSize < index+1 || index < 0){
+        return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+    }
+
+    return stack[stackSize-index];
+
 }
 
 void StackTrace::Clear(){
@@ -350,7 +366,7 @@ void RegisterTable::Clear(){
     r15 = {"r15", "r15d", "r15w", "r15b", "", nullptr, false, false, 0, 0, 0};
 }
 
-std::string RegisterTable::MovReg(std::string r1, std::string r2){
+std::string RegisterTable::MovReg(StackTrace* stack, std::string r1, std::string r2){
     RegisterValue reg1 = {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
     RegisterValue reg2 = {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
 
@@ -457,6 +473,14 @@ std::string RegisterTable::MovReg(std::string r1, std::string r2){
     else{
         return "; Unknown register error\n";
     }
+
+    if(reg1.Var){
+        this->PushToStack(stack, reg1.Register);
+        this->Allocations.remove(&reg1);
+    }
+
+    this->Allocations.remove(&reg2);
+    this->Allocations.push_back(&reg1);
     
     reg1.Update(&reg2);
     
@@ -605,6 +629,195 @@ std::string RegisterTable::PushToStack(StackTrace* stack, std::string registerNa
     return "; Unknown register error\n";
 }
 
+void RegisterTable::NewSave(StackTrace* stack){
+    SavePoint.push_back(stack->Size());
+}
+
+std::string RegisterTable::CorrectStack(StackTrace* stack, int IndentIndex){
+    if(SavePoint.size() == 0){
+        return "; No save point\n";
+    }
+
+    int size = SavePoint[SavePoint.size()-1];
+    SavePoint.pop_back();
+
+    int Removed = 0;
+
+    while(stack->Size() > size){
+        stack->Pop();
+        Removed++;
+    }
+
+    if(!Removed){
+        return ";; No stack correction needed\n";
+    }
+
+    return "; Stack correction\n" + std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((Removed) * 8) + "\n";
+
+}
+RegisterValue* RegisterTable::GetFreeReg(StackTrace* stack, std::string& ReturnString, int IndentIndex){
+    if(r8.Var == nullptr){
+        return &r8;
+    }
+    else if(r9.Var == nullptr){
+        return &r9;
+    }
+    else if(r10.Var == nullptr){
+        return &r10;
+    }
+    else if(r11.Var == nullptr){
+        return &r11;
+    }
+    else if(r12.Var == nullptr){
+        return &r12;
+    }
+    else if(r13.Var == nullptr){
+        return &r13;
+    }
+    else if(r14.Var == nullptr){
+        return &r14;
+    }
+    else if(r15.Var == nullptr){
+        return &r15;
+    }
+    else if(rdi.Var == nullptr){
+        return &rdi;
+    }
+    else if(rsi.Var == nullptr){
+        return &rsi;
+    }
+    else if(rdx.Var == nullptr){
+        return &rdx;
+    }
+    else if(rcx.Var == nullptr){
+        return &rcx;
+    }
+    else if(rbx.Var == nullptr){
+        return &rbx;
+    }
+    else if(rax.Var == nullptr){
+        return &rax;
+    }
+
+    // Load last used to stack
+    RegisterValue* FirstAllocated = Allocations.front();
+    Allocations.pop_front();
+
+    ReturnString += std::string(IndentIndex*4, ' ') + this->PushToStack(stack, FirstAllocated->Register);
+
+    return FirstAllocated;
+}
+RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVariables::SemanticVariable* Var, std::string& ReturnString, int IndentIndex){
+    // Already in a register?
+    if(r8.Var == Var){
+        this->Allocations.remove(&r8);
+        this->Allocations.push_back(&r8);
+        return &r8;
+    }
+    else if(r9.Var == Var){
+        this->Allocations.remove(&r9);
+        this->Allocations.push_back(&r9);
+        return &r9;
+    }
+    else if(r10.Var == Var){
+        this->Allocations.remove(&r10);
+        this->Allocations.push_back(&r10);
+        return &r10;
+    }
+    else if(r11.Var == Var){
+        this->Allocations.remove(&r11);
+        this->Allocations.push_back(&r11);
+        return &r11;
+    }
+    else if(r12.Var == Var){
+        this->Allocations.remove(&r12);
+        this->Allocations.push_back(&r12);
+        return &r12;
+    }
+    else if(r13.Var == Var){
+        this->Allocations.remove(&r13);
+        this->Allocations.push_back(&r13);
+        return &r13;
+    }
+    else if(r14.Var == Var){
+        this->Allocations.remove(&r14);
+        this->Allocations.push_back(&r14);
+        return &r14;
+    }
+    else if(r15.Var == Var){
+        this->Allocations.remove(&r15);
+        this->Allocations.push_back(&r15);
+        return &r15;
+    }
+    else if(rdi.Var == Var){
+        this->Allocations.remove(&rdi);
+        this->Allocations.push_back(&rdi);
+        return &rdi;
+    }
+    else if(rsi.Var == Var){
+        this->Allocations.remove(&rsi);
+        this->Allocations.push_back(&rsi);
+        return &rsi;
+    }
+    else if(rdx.Var == Var){
+        this->Allocations.remove(&rdx);
+        this->Allocations.push_back(&rdx);
+        return &rdx;
+    }
+    else if(rcx.Var == Var){
+        this->Allocations.remove(&rcx);
+        this->Allocations.push_back(&rcx);
+        return &rcx;
+    }
+    else if(rbx.Var == Var){
+        this->Allocations.remove(&rbx);
+        this->Allocations.push_back(&rbx);
+        return &rbx;
+    }
+    else if(rax.Var == Var){
+        this->Allocations.remove(&rax);
+        this->Allocations.push_back(&rax);
+        return &rax;
+    }
+
+    // Get a freed register
+    auto FreeReg = GetFreeReg(stack, ReturnString, IndentIndex);
+
+    // Is it in the stack
+    for(auto i = stack->Size()-1; i >= 0; i--){
+        if(stack->Peek(i).Var == Var){
+            ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+            ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register);
+            ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+            auto Reg = stack->Peek(i);
+            FreeReg->Update(&Reg);
+            Allocations.push_back(FreeReg);
+            return FreeReg;
+        }
+    }
+
+    // Nope so we clearly need to load it
+    Allocations.push_back(FreeReg);
+    if (Var->Type() == SemanticTypeLiteral){
+        ReturnString += std::string(IndentIndex*4, ' ') + FreeReg->set((SemLiteral*)Var);
+    }
+    else{
+        ReturnString += std::string(IndentIndex*4, ' ') + FreeReg->set((Variable*)Var, false);
+    }
+
+    return FreeReg;
+}
+
+void RegisterTable::ReleaseReg(RegisterValue* reg){
+    this->Allocations.remove(reg);
+    reg->Var = nullptr;
+    reg->IsPointer = false;
+    reg->IsValue = false;
+    reg->Size = 0;
+    reg->Value = 0;
+    reg->TypeID = -1;
+}
+
 std::string RegisterValue::set(Parsing::SemanticVariables::Variable* variable, bool isPointer){
     this->Var = variable;
     this->IsPointer = isPointer;
@@ -641,7 +854,7 @@ std::string RegisterValue::save(){
     return "; Unknown error\n";
 }
 std::string RegisterValue::set(Parsing::SemanticVariables::SemLiteral* variable){
-    this->Var = nullptr;
+    this->Var = variable;
     this->IsPointer = false;
     this->IsValue = true;
     this->TypeID = variable->TypeID;
@@ -687,7 +900,6 @@ std::string RegisterValue::set(Parsing::SemanticVariables::SemLiteral* variable)
 }
 
 std::string RegisterValue::set(uint64_t value){
-    this->Var = nullptr;
     this->IsPointer = false;
     this->IsValue = true;
     this->Size = 8;
@@ -696,7 +908,6 @@ std::string RegisterValue::set(uint64_t value){
     return "mov " + this->Register + ", " + std::to_string(value) + "\n";
 }
 std::string RegisterValue::set(uint32_t value){
-    this->Var = nullptr;
     this->IsPointer = false;
     this->IsValue = true;
     this->Size = 4;
@@ -705,7 +916,6 @@ std::string RegisterValue::set(uint32_t value){
     return "mov " + this->Register1 + ", " + std::to_string(value) + "\n";
 }
 std::string RegisterValue::set(uint16_t value){
-    this->Var = nullptr;
     this->IsPointer = false;
     this->IsValue = true;
     this->Size = 2;
@@ -714,7 +924,6 @@ std::string RegisterValue::set(uint16_t value){
     return "mov " + this->Register2 + ", " + std::to_string(value) + "\n";
 }
 std::string RegisterValue::set(uint8_t value){
-    this->Var = nullptr;
     this->IsPointer = false;
     this->IsValue = true;
     this->Size = 1;

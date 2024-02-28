@@ -1,7 +1,7 @@
 @echo off
 set input=./build/bin/Compiler.exe
 set input2=./test/SimpleExit.uc
-"%input%" -i "%input2%" -o test
+@REM "%input%" -i "%input2%" -o test
 
 nasm -f win64 test.asm
 @REM ld test.obj -o test.exe --large-address-aware

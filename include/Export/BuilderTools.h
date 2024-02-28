@@ -2,6 +2,8 @@
 
 #include <Parsing/SemanticVariables.h>
 
+#include <list>
+
 namespace Exporting
 {
     namespace Helpers
@@ -56,7 +58,9 @@ namespace Exporting
         public:
             void Push(RegisterValue scope);
             RegisterValue Pop();
+            RegisterValue Pop(int index);
             RegisterValue Peek();
+            RegisterValue Peek(int index);
 
             void Clear();
 
@@ -109,6 +113,9 @@ namespace Exporting
             RegisterValue r13 = {};
             RegisterValue r14 = {};
             RegisterValue r15 = {};
+
+            std::vector<int> SavePoint = {};
+            std::list<RegisterValue*> Allocations = {};
         public:
             RegisterTable();
             ~RegisterTable();
@@ -117,7 +124,13 @@ namespace Exporting
             std::string PullFromStack(StackTrace* stack, std::string registerName);
             std::string PushToStack(StackTrace* stack, std::string registerName);
 
-            std::string MovReg(std::string register1, std::string register2);
+            std::string MovReg(StackTrace* stack, std::string register1, std::string register2);
+
+            void NewSave(StackTrace* stack);
+            std::string CorrectStack(StackTrace* stack, int IndentIndex);
+            RegisterValue* GetFreeReg(StackTrace* stack, std::string& ReturnString, int IndentIndex);
+            void ReleaseReg(RegisterValue* reg);
+            RegisterValue* GetVariable(StackTrace* stack, Parsing::SemanticVariables::SemanticVariable* Var, std::string& ReturnString, int IndentIndex);
 
             void Clear();
         };

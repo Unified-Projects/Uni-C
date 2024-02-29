@@ -65,9 +65,10 @@ RegisterValue StackTrace::Peek(){
 
     return stack[stackSize-1];
 }
-RegisterValue StackTrace::Peek(int index){
+RegisterValue& StackTrace::Peek(int index){
     if(stackSize < index+1 || index < 0){
-        return {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+        static RegisterValue Null = {"", "", "", "", "", nullptr, false, false, 0, 0, -1};
+        return Null;
     }
 
     return stack[stackSize-index];
@@ -152,6 +153,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -172,6 +175,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -197,6 +202,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -214,6 +221,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -237,6 +246,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -245,15 +256,46 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
             entry->Var = Root;
 
             ScopeMap[Root] = entry;
+        }
+        break;
+    case SemanticTypeFunctionRef:
+        {
+            ScopeTreeEntry* entry = new ScopeTreeEntry();
+            entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
+            entry->parent = Parent;
+            entry->children = {};
+            entry->Variables = {};
+            entry->TypeDefs = {};
+            entry->Functions = {};
+            entry->Var = Root;
 
-            // Load to Parent
-            Parent->Variables.push_back(entry);
+            ScopeMap[Root] = entry;
+        }
+        break;
+    case SemanticTypeRegisterRef:
+        {
+            ScopeTreeEntry* entry = new ScopeTreeEntry();
+            entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
+            entry->parent = Parent;
+            entry->children = {};
+            entry->Variables = {};
+            entry->TypeDefs = {};
+            entry->Functions = {};
+            entry->Var = Root;
+
+            ScopeMap[Root] = entry;
         }
         break;
     case SemanticTypeLiteral:
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -272,6 +314,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
             entry->parent = Parent;
+            entry->Scope = Root->ScopePosition;
+            entry->ScopeLocal = Root->LocalScope;
             entry->children = {};
             entry->Variables = {};
             entry->TypeDefs = {};
@@ -295,6 +339,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
         {
             ScopeTreeEntry* entry = new ScopeTreeEntry();
             entry->ScopeIndex = Root->LocalScope;
+            entry->Scope = Root->LocalScope;
+            entry->ScopeLocal = Root->ScopePosition;
             entry->parent = Parent;
             entry->children = {};
             entry->Variables = {};
@@ -320,6 +366,8 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
 
 #include <iostream>
 
+// TODO : Follow from above local scope position
+
 Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindVariable(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope){
     // Find entry to traverse up
     ScopeTreeEntry* entry = ScopeMap[Scope];
@@ -327,10 +375,27 @@ Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindVariable(std::strin
     while(entry != nullptr){;
         for(auto var : entry->Variables){
             if(((Variable*)var->Var)->Identifier == Name){
-                if(var->Var->ScopePosition > Scope->ScopePosition && var->Var->LocalScope == Scope->LocalScope)
-                    return nullptr;
+                if(var->Var->ScopePosition > entry->ScopeLocal && entry->Var->ParentScope == entry->Var->LocalScope)
+                    continue;
 
+                return var->Var;
+            }
+        }
+        entry = entry->parent;
+    }
 
+    return nullptr;
+}
+
+Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindFunction(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope){
+    // Find entry to traverse up
+    ScopeTreeEntry* entry = ScopeMap[Scope];
+
+    while(entry != nullptr){;
+        for(auto var : entry->Functions){
+            if(((Function*)var->Var)->Identifier == Name){
+                if(var->Var->ScopePosition > entry->ScopeLocal)
+                    continue;
 
                 return var->Var;
             }
@@ -487,8 +552,14 @@ std::string RegisterTable::MovReg(StackTrace* stack, std::string r1, std::string
     return "mov " + reg1.Register + ", " + reg2.Register + "\n";
 }
 
-std::string RegisterTable::PullFromStack(StackTrace* stack, std::string registerName){
-    auto reg = stack->Pop();
+std::string RegisterTable::PullFromStack(StackTrace* stack, std::string registerName, int at){
+    auto reg = stack->Peek(at);
+    if(!at){
+        stack->Pop();
+    }
+    else{
+        stack->Peek(at).Var = nullptr;
+    }
     if(reg.TypeID == -1){
         return "; Stack is empty\n";
     }
@@ -730,6 +801,104 @@ RegisterValue* RegisterTable::GetFreeReg(StackTrace* stack, std::string& ReturnS
     return FirstAllocated;
 }
 RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVariables::SemanticVariable* Var, std::string& ReturnString, int IndentIndex){
+    // Is it a register ref
+    if(Var->Type() == SemanticTypeRegisterRef){
+        // We need its specific register
+        auto Ref = (RegisterRef*)Var;
+        RegisterValue* Reg = nullptr;
+
+        if(Ref->Register == "rax"){
+            Reg = &rax;
+        }
+        else if(Ref->Register == "rbx"){
+            Reg = &rbx;
+        }
+        else if(Ref->Register == "rcx"){
+            Reg = &rcx;
+        }
+        else if(Ref->Register == "rdx"){
+            Reg = &rdx;
+        }
+        else if(Ref->Register == "rsi"){
+            Reg = &rsi;
+        }
+        else if(Ref->Register == "rdi"){
+            Reg = &rdi;
+        }
+        else if(Ref->Register == "rbp"){
+            Reg = &rbp;
+        }
+        else if(Ref->Register == "rsp"){
+            Reg = &rsp;
+        }
+        else if(Ref->Register == "r8"){
+            Reg = &r8;
+        }
+        else if(Ref->Register == "r9"){
+            Reg = &r9;
+        }
+        else if(Ref->Register == "r10"){
+            Reg = &r10;
+        }
+        else if(Ref->Register == "r11"){
+            Reg = &r11;
+        }
+        else if(Ref->Register == "r12"){
+            Reg = &r12;
+        }
+        else if(Ref->Register == "r13"){
+            Reg = &r13;
+        }
+        else if(Ref->Register == "r14"){
+            Reg = &r14;
+        }
+        else if(Ref->Register == "r15"){
+            Reg = &r15;
+        }
+        else{
+            return nullptr;
+        }
+
+        if(Reg->Var == Var){
+            this->Allocations.remove(Reg);
+            this->Allocations.push_back(Reg);
+            return Reg;
+        }
+        else{
+            if(Reg->Var != nullptr){
+                ReturnString += std::string(IndentIndex*4, ' ') + this->PushToStack(stack, Reg->Register);
+                Allocations.remove(Reg);
+            }
+
+            // Is this in the stack
+            // Is it in the stack
+            for(auto i = 0; i < stack->Size(); i++){
+                if(stack->Peek(i).Var == Var){
+                    ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+                    stack->Peek(i).Var = nullptr;
+                    ReturnString += std::string(IndentIndex*4, ' ') + "pop " + Reg->Register + "\n";
+                    ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+
+                    Reg->Var = Var;
+                    Reg->Size = Ref->Size;
+                    Reg->TypeID = 0;
+
+                    Allocations.push_back(Reg);
+
+                    return Reg;
+                }
+            }
+
+            Reg->Var = Var;
+            Reg->Size = Ref->Size;
+            Reg->TypeID = 0;
+
+            Allocations.push_back(Reg);
+
+            return Reg;
+        }
+    }
+
     // Already in a register?
     if(r8.Var == Var){
         this->Allocations.remove(&r8);
@@ -805,11 +974,45 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
     // Get a freed register
     auto FreeReg = GetFreeReg(stack, ReturnString, IndentIndex);
 
+    if(Var->Type() == SemanticTypeFunctionRef){
+        if(FreeReg->Var != nullptr){
+            ReturnString += std::string(IndentIndex*4, ' ') + this->PushToStack(stack, FreeReg->Register);
+            Allocations.remove(FreeReg);
+        }
+
+        // Is this in the stack
+        // Is it in the stack
+        for(auto i = 0; i < stack->Size(); i++){
+            if(stack->Peek(i).Var == Var){
+                ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+                stack->Peek(i).Var = nullptr;
+                ReturnString += std::string(IndentIndex*4, ' ') + "pop " + FreeReg->Register + "\n";
+                ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+
+                FreeReg->Var = Var;
+                FreeReg->TypeID = 0;
+                FreeReg->Size = ((Operation*)Var)->EndSize;
+
+                Allocations.push_back(FreeReg);
+
+                return FreeReg;
+            }
+        }
+
+        FreeReg->Var = Var;
+        FreeReg->TypeID = 0;
+        FreeReg->Size = ((Operation*)Var)->EndSize;
+
+        Allocations.push_back(FreeReg);
+
+        return FreeReg;
+    }
+
     // Is it in the stack
-    for(auto i = stack->Size()-1; i >= 0; i--){
+    for(auto i = 0; i < stack->Size(); i++){
         if(stack->Peek(i).Var == Var){
             ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
-            ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register);
+            ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register, i);
             ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
             auto Reg = stack->Peek(i);
             FreeReg->Update(&Reg);
@@ -887,7 +1090,24 @@ std::string RegisterValue::save(){
         return "; No need to save pointer\n";
     }
     else{
-        return "mov [" + GetSymbol(this->Var) + "], " + this->Register + "\n";
+        if(this->IsValue){
+            return "";
+        }
+
+        if(Var->Type() == SemanticTypeVariable){
+            auto var = (Variable*)Var;
+            // if(var->IsGlobal){
+            //     return "; No need to save global\n";
+            // }
+
+            return "mov [" + GetSymbol(this->Var) + "], " + this->Register + "\n";
+        }
+        else if(Var->Type() == SemanticTypeRegisterRef){
+            return "";
+        }
+        else{
+            return "; Unknown type error\n";
+        }
     }
 
     return "; Unknown error\n";

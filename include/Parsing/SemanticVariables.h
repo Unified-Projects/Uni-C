@@ -49,7 +49,9 @@ namespace Parsing
             SemanticTypeNull,
             SemanticTypeVariable,
             SemanticTypeVariableRef,
+            SemanticTypeRegisterRef,
             SemanticTypeFunction,
+            SemanticTypeFunctionRef,
             SemanticTypeType,
             SemanticTypeStatement,
             SemanticTypeOperation,
@@ -92,6 +94,14 @@ namespace Parsing
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeFunction;}
             std::vector<Variable*> Parameters = {};
             std::vector<SemanticVariable*> Block = {};
+        };
+
+        struct FunctionRef : SemanticVariable
+        {
+            std::string Identifier = "";
+            int Size = 0;
+            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
+            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeFunctionRef;}
         };
 
         struct SemTypeDef : SemanticVariable
@@ -169,6 +179,7 @@ namespace Parsing
         {
             int TypeID = -1;
             std::vector<SemanticVariable*> Parameters = {};
+            int EndSize = 4;
             // SemanticTypes Type = SemanticTypes::SemanticTypeOperation;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeOperation;}
         };
@@ -179,6 +190,13 @@ namespace Parsing
             std::string Value = "";
             // SemanticTypes Type = SemanticTypes::SemanticTypeLiteral;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeLiteral;}
+        };
+
+        struct RegisterRef : SemanticVariable{
+            std::string Register = "";
+            int Size = 4;
+            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
+            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeRegisterRef;}
         };
 
         struct Scope : SemanticVariable

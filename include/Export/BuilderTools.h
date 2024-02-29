@@ -62,7 +62,7 @@ namespace Exporting
             RegisterValue Pop();
             RegisterValue Pop(int index);
             RegisterValue Peek();
-            RegisterValue Peek(int index);
+            RegisterValue& Peek(int index);
 
             void Clear();
 
@@ -72,6 +72,8 @@ namespace Exporting
 
         struct ScopeTreeEntry{
             int ScopeIndex = 0;
+            int ScopeLocal = 0;
+            int Scope = 0;
             ScopeTreeEntry* parent = nullptr;
             Parsing::SemanticVariables::SemanticVariable* Var = nullptr;
             std::vector<ScopeTreeEntry*> children = {};
@@ -92,6 +94,7 @@ namespace Exporting
 
         public:
             Parsing::SemanticVariables::SemanticVariable* FindVariable(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope);
+            Parsing::SemanticVariables::SemanticVariable* FindFunction(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope);
 
         protected:
             void GenerateTree(Parsing::SemanticVariables::SemanticVariable* Scope, ScopeTreeEntry* Parent);
@@ -123,7 +126,7 @@ namespace Exporting
             ~RegisterTable();
             
         public:
-            std::string PullFromStack(StackTrace* stack, std::string registerName);
+            std::string PullFromStack(StackTrace* stack, std::string registerName, int at = 0);
             std::string PushToStack(StackTrace* stack, std::string registerName);
 
             std::string MovReg(StackTrace* stack, std::string register1, std::string register2);

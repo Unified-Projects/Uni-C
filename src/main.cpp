@@ -126,6 +126,14 @@ int main(int argc, char* argv[]){
                 Parsing::SemanticVariables::VariableRef* type = (Parsing::SemanticVariables::VariableRef*)scope;
                 std::cout << std::string(depth * 2, ' ') << "Reference of: " << type->Identifier << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
             }
+            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeFunctionRef){
+                Parsing::SemanticVariables::FunctionRef* type = (Parsing::SemanticVariables::FunctionRef*)scope;
+                std::cout << std::string(depth * 2, ' ') << "Reference of: " << type->Identifier << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
+            }
+            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeRegisterRef){
+                Parsing::SemanticVariables::RegisterRef* type = (Parsing::SemanticVariables::RegisterRef*)scope;
+                std::cout << std::string(depth * 2, ' ') << "Register: " << type->Register << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
+            }
             if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeFunction){
                 Parsing::SemanticVariables::Function* func = (Parsing::SemanticVariables::Function*)scope;
                 std::cout << std::string(depth * 2, ' ') << "Function: " << func->Identifier << " Scope: " << func->LocalScope << ":" << func->ScopePosition << std::endl;

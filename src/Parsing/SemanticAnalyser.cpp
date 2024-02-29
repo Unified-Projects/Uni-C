@@ -68,7 +68,70 @@ std::map<int, SemanticVariable*> SemanticScopeMap = {
     // ScopePosition : Scope
 };
 
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0){
+int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0);
+SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart);
+void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart);
+
+void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart){
+    int i = *tokenStart;
+
+    // Argument Start Token
+    int Start = i;
+
+    for(int ArgIndex = 0; ArgIndex < Func.Parameters.size(); ArgIndex++){
+        Operation* ArgumentOpeation = new Operation();
+        ArgumentOpeation->TypeID = SemanticOperationScoper;
+        ArgumentOpeation->ParentScope = Parent->LocalScope;
+        ArgumentOpeation->LocalScope = Parent->LocalScope;
+        ArgumentOpeation->ScopePosition = Parent->NextScopePosition++;
+        ArgumentOpeation->Parent = Parent;
+
+        if(Func.Parameters.size() < ArgIndex+1){
+            std::cerr << "Error: Too Many Arguments at line " << lexer->getToken(i).fileLine << std::endl;
+            return;
+        }
+
+        VariableRef* id = new VariableRef();
+        id->Identifier = Func.Parameters[ArgIndex].Name;
+        id->ParentScope = ArgumentOpeation->LocalScope;
+        id->LocalScope = ArgumentOpeation->LocalScope;
+        id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
+        id->Parent = ArgumentOpeation;
+
+        ArgumentOpeation->Parameters.push_back(id);
+
+        if(Func.Parameters.size() - ArgIndex > 1){
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator);
+        }
+        else{
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd);
+        }
+
+        // Load Operator
+        Operation* op = new Operation();
+        op->TypeID = SemanticOperationAssignment;
+        op->ParentScope = ArgumentOpeation->LocalScope;
+        op->LocalScope = ArgumentOpeation->LocalScope;
+        op->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
+        op->Parent = ArgumentOpeation;
+
+        ArgumentOpeation->Parameters.push_back(op);
+
+        ((Operation*)Parent)->Parameters.push_back(ArgumentOpeation);
+
+        ArgIndex++;
+    }
+
+    if(lexer->getToken(i).tokenType == TokenTypes::LineEnd){
+        std::cerr << "Error: Expected ')' at line " << lexer->getToken(i).fileLine << std::endl;
+        return;
+    }
+
+    tokenStart[0] = i;
+    return;
+}
+
+int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end, int EndOffset){
     int i = *tokenStart;
 
     // Find Distance to line end
@@ -132,7 +195,15 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
             break;
         case TokenTypes::Identifier:
             {
-                // TODO FUNCTIONS
+                if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
+                    auto F = Evaluate(OpParent, &OpParent->Parameters, Lexer, &i);
+                    if(F == nullptr){
+                        return -1;
+                    }
+                    else{
+                        break;
+                    }
+                }
 
                 // Load variable reference
                 VariableRef* id = new VariableRef();
@@ -210,63 +281,6 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
     tokenStart[0] = i;
 
     return 0;
-}
-
-void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart){
-    int i = *tokenStart;
-
-    // Argument Start Token
-    int Start = i;
-
-    for(int ArgIndex = 0; ArgIndex < Func.Parameters.size(); ArgIndex++){
-        Operation* ArgumentOpeation = new Operation();
-        ArgumentOpeation->TypeID = SemanticOperationAssignment;
-        ArgumentOpeation->ParentScope = Parent->LocalScope;
-        ArgumentOpeation->LocalScope = Parent->LocalScope;
-        ArgumentOpeation->ScopePosition = Parent->NextScopePosition++;
-        ArgumentOpeation->Parent = Parent;
-
-        if(Func.Parameters.size() < ArgIndex+1){
-            std::cerr << "Error: Too Many Arguments at line " << lexer->getToken(i).fileLine << std::endl;
-            return;
-        }
-
-        VariableRef* id = new VariableRef();
-        id->Identifier = Func.Parameters[ArgIndex].Name;
-        id->ParentScope = ArgumentOpeation->LocalScope;
-        id->LocalScope = ArgumentOpeation->LocalScope;
-        id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
-        id->Parent = ArgumentOpeation;
-
-        ArgumentOpeation->Parameters.push_back(id);
-
-        if(Func.Parameters.size() - ArgIndex > 1){
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator);
-        }
-        else{
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd);
-        }
-
-        // Load Operator
-        Operation* op = new Operation();
-        op->TypeID = SemanticOperationMap[""];
-        op->ParentScope = ArgumentOpeation->LocalScope;
-        op->LocalScope = ArgumentOpeation->LocalScope;
-        op->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
-        op->Parent = ArgumentOpeation;
-
-        ArgumentOpeation->Parameters.push_back(op);
-
-        ArgIndex++;
-    }
-
-    if(lexer->getToken(i).tokenType == TokenTypes::LineEnd){
-        std::cerr << "Error: Expected ')' at line " << lexer->getToken(i).fileLine << std::endl;
-        return;
-    }
-
-    tokenStart[0] = i;
-    return;
 }
 
 SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart){
@@ -385,12 +399,13 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->Parent = Parent;
 
                 // Add first paramenter of the identifier
-                VariableRef* id = new VariableRef();
+                FunctionRef* id = new FunctionRef();
                 id->Identifier = VariableName;
                 id->ParentScope = op->LocalScope;
                 id->LocalScope = op->LocalScope;
                 id->ScopePosition = op->Parent->NextScopePosition++;
                 id->Parent = op;
+                id->Size = SemanticTypeMap[SemanticFunctionMap[VariableName].ReturnType].Size;
 
                 op->Parameters.push_back(id);
 
@@ -421,10 +436,6 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
             if(token.tokenValue == std::string("return")){
                 // Should have a literal then a line end or a identifier then a line end
                 if (Lexer->getToken(i+1).tokenType == TokenTypes::Literal || Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                    if(Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){
-                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
-                        return nullptr;
-                    }
 
                     // Valid Return
                     SemStatement* ret = new SemStatement();
@@ -434,54 +445,91 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     ret->ScopePosition = Parent->NextScopePosition++;
                     ret->Parent = Parent;
 
+                    i++;
+
                     // Load argument
-                    if(Lexer->getToken(i+1).tokenType == TokenTypes::Literal){
-                        SemLiteral* lit = new SemLiteral();
-                        lit->Value = Lexer->getToken(i+1).tokenValue;
-                        // TODO Custom Intialisers
-                        if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
-                            lit->TypeID = SemanticTypeMap["int"].TypeID;
-                        }
-                        else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
-                            lit->TypeID = SemanticTypeMap["double"].TypeID;
-                        }
-                        else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
-                            lit->TypeID = SemanticTypeMap["bool"].TypeID;
-                        }
-                        else if(lit->Value[0] == '\"' && lit->Value.ends_with("\"")){
-                            lit->TypeID = SemanticTypeMap["string"].TypeID;
-                        }
-                        else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
-                            lit->TypeID = SemanticTypeMap["char"].TypeID;
-                        }
-                        else{
-                            std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                            return nullptr;
-                        }
+                    Operation* op = new Operation();
+                    op->TypeID = SemanticOperationScoper;
+                    op->ParentScope = ret->LocalScope;
+                    op->LocalScope = ret->LocalScope;
+                    op->ScopePosition = ret->NextScopePosition++;
+                    op->Parent = ret;
 
-                        lit->ParentScope = ret->LocalScope;
-                        lit->LocalScope = ret->LocalScope;
-                        lit->ScopePosition = ret->Parent->NextScopePosition++;
-                        lit->Parent = ret;
+                    ret->Parameters.push_back(op);
 
-                        ret->Parameters.push_back(lit);
+                    RegisterRef* id = new RegisterRef();
+                    id->Register = "rax";
+                    id->ParentScope = op->LocalScope;
+                    id->LocalScope = op->LocalScope;
+                    id->ScopePosition = op->Parent->NextScopePosition++;
+                    id->Parent = op;
 
-                        i+=3; // Skip forwards
-                    }
-                    else if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                        VariableRef* id = new VariableRef();
-                        id->Identifier = Lexer->getToken(i+1).tokenValue;
-                        id->ParentScope = ret->LocalScope;
-                        id->LocalScope = ret->LocalScope;
-                        id->ScopePosition = ret->Parent->NextScopePosition++;
-                        id->Parent = ret;
+                    op->Parameters.push_back(id);
 
-                        ret->Parameters.push_back(id);
+                    EvaluateOperands(op, Lexer, &i);
 
-                        i+=3; // Skip forwards
-                    }
-                    else{
-                        std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    Operation* assinger = new Operation();
+                    assinger->TypeID = SemanticOperationAssignment;
+                    assinger->ParentScope = ret->LocalScope;
+                    assinger->LocalScope = ret->LocalScope;
+                    assinger->ScopePosition = ret->NextScopePosition++;
+                    assinger->Parent = ret;
+                    
+                    op->Parameters.push_back(assinger);
+
+                    // // Load argument
+                    // if(Lexer->getToken(i+1).tokenType == TokenTypes::Literal){
+                    //     SemLiteral* lit = new SemLiteral();
+                    //     lit->Value = Lexer->getToken(i+1).tokenValue;
+                    //     // TODO Custom Intialisers
+                    //     if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
+                    //         lit->TypeID = SemanticTypeMap["int"].TypeID;
+                    //     }
+                    //     else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
+                    //         lit->TypeID = SemanticTypeMap["double"].TypeID;
+                    //     }
+                    //     else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
+                    //         lit->TypeID = SemanticTypeMap["bool"].TypeID;
+                    //     }
+                    //     else if(lit->Value[0] == '\"' && lit->Value.ends_with("\"")){
+                    //         lit->TypeID = SemanticTypeMap["string"].TypeID;
+                    //     }
+                    //     else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
+                    //         lit->TypeID = SemanticTypeMap["char"].TypeID;
+                    //     }
+                    //     else{
+                    //         std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    //         return nullptr;
+                    //     }
+
+                    //     lit->ParentScope = ret->LocalScope;
+                    //     lit->LocalScope = ret->LocalScope;
+                    //     lit->ScopePosition = ret->Parent->NextScopePosition++;
+                    //     lit->Parent = ret;
+
+                    //     ret->Parameters.push_back(lit);
+
+                    //     i+=3; // Skip forwards
+                    // }
+                    // else if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
+                    //     VariableRef* id = new VariableRef();
+                    //     id->Identifier = Lexer->getToken(i+1).tokenValue;
+                    //     id->ParentScope = ret->LocalScope;
+                    //     id->LocalScope = ret->LocalScope;
+                    //     id->ScopePosition = ret->Parent->NextScopePosition++;
+                    //     id->Parent = ret;
+
+                    //     ret->Parameters.push_back(id);
+
+                    //     i+=3; // Skip forwards
+                    // }
+                    // else{
+                    //     std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    //     return nullptr;
+                    // }
+
+                    if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
+                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
                         return nullptr;
                     }
 

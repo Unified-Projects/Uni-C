@@ -1,11 +1,7 @@
-int Func2(){
-    return 2;
+int Func2(int i){
+    return 2 + i;
 }
 
 int main(){
-    if(5 == 5){
-        return 1;
-    }
-    Func2();
-    return 1;
+    return Func2(3);
 }

@@ -101,60 +101,29 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
             {
             case SemanticStatementReturn:
                 {
-                    // Stack Correction
-                    assembly += registerTable->CorrectStackNoSaveDec(stackTrace, IndentCount);
 
                     if(CompilerInformation::DebugAll()){
                         assembly += ";; Return Operation\n";
                     }
+
                     for(auto& Params : ((SemStatement*)Block)->Parameters){
                         if(Params->Type() == SemanticTypeOperation){
-                            assembly += ConvertGeneric(Params, IndentCount+1);
-
-                            // Load last register
-                            // TODO
-                        }
-                        else if(Params->Type() == SemanticTypeLiteral){
-                            // Check if it is in data (Could be a string not a number) (Use ID to find it)
-                            if(CompilerInformation::DebugAll()){
-                                assembly += ";; Return Literal\n";
-                            }
-
-                            assembly += std::string(IndentCount*4, ' ') + "mov rax, " + ((SemLiteral*)Params)->Value + "\n";
-                        }
-                        else if(Params->Type() == SemanticTypeVariableRef){
-                            // TODO: See if Variable is loaded to registers / Altered from initial value
-                            // Check if it is in stack
-
-                            // Check if it is in Data
-                            // Variable Name
-                            std::string VarName = ((VariableRef*)Params)->Identifier;
-
-                            // Find in Scope Trace
-                            Variable* var = (Variable*)scopeTree->FindVariable(VarName, Params);
-
-                            if(var != nullptr){
-                                if(var->InitValue != ""){
-                                    if(CompilerInformation::DebugAll()){
-                                        assembly += ";; Return Variable\n";
-                                    }
-
-                                    assembly += std::string(IndentCount*4, ' ') + "mov rax, [" + GetSymbol(var) + "]\n";
-                                }
-                            }
-                            else{
-                                std::cerr << "Variable Not Found: " << VarName << std::endl;
-                            }
-                            
-                            // Otherwise scope error
+                            assembly += ConvertGeneric(Params, IndentCount);
                         }
                     }
+
+                    // Stack Correction
+                    assembly += registerTable->CorrectStackNoSaveDec(stackTrace, IndentCount);
+
                     assembly += std::string(IndentCount*4, ' ') + "ret\n";
                 }
                 break;
             
             case SemanticStatementIf:
                 {
+                    // Stack save point
+                    registerTable->NewSave(stackTrace);
+
                     if(CompilerInformation::DebugAll()){
                         assembly += ";; If Statement\n";
                     }
@@ -268,6 +237,9 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 
                     // End of If
                     assembly += std::string(IndentCount*4, ' ') + "IfEnd_" + GetSymbol(Block) + ":\n";
+                    
+                    // Restore stack
+                    assembly += registerTable->CorrectStack(stackTrace, IndentCount);
                 }
                 break;
             
@@ -286,10 +258,60 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
             // Use Stack For Operations
             for(auto& Params : ((Operation*)Block)->Parameters){
                 if(Params->Type() == SemanticTypeOperation){
+                    if(((Operation*)Params)->TypeID == SemanticOperationFunctionCall){
+                        if(CompilerInformation::DebugAll()){
+                            assembly += ";; Function Call\n";
+                        }
+
+                        // Find function
+                        FunctionRef* FuncRef = (FunctionRef*)((Operation*)Params)->Parameters[0];
+                        auto Func = scopeTree->FindFunction(FuncRef->Identifier, FuncRef);
+
+                        if(!Func || Func->Type() != SemanticTypeFunction){
+                            std::cerr << "Function Not Found: " << FuncRef->Identifier << std::endl;
+                            return assembly;
+                        }
+
+                        // Load paramenters
+                        bool Skipped = false;
+                        for(auto& Params : ((Operation*)Params)->Parameters){
+                            if(!Skipped){
+                                Skipped = true;
+                                continue;
+                            }
+                            if(Params->Type() == SemanticTypeOperation){
+                                assembly += ConvertGeneric(Params, IndentCount);
+                            }
+                        }
+
+                        auto reg = registerTable->GetVariable(stackTrace, FuncRef, assembly, IndentCount);
+
+                        // Call Function
+                        assembly += std::string(IndentCount*4, ' ') + "call " + FuncRef->Identifier + "\n";
+                        registerTable->ReleaseReg(&registerTable->rax);
+                        assembly += std::string(IndentCount*4, ' ') + "mov " + reg->get() + ", eax\n";
+
+                        Arguments.push_back(FuncRef);
+                        continue;
+                    }
+
                     Operation* op = (Operation*)Params;
-                    auto Arg2 = registerTable->GetVariable(stackTrace, Arguments.back(), assembly, IndentCount);
+                    // VariableRefs
+                    auto A2 = Arguments.back();
                     Arguments.pop_back();
-                    auto Arg1 = registerTable->GetVariable(stackTrace, Arguments.back(), assembly, IndentCount);
+                    auto A1 = Arguments.back();
+
+                    Exporting::Helpers::RegisterValue* Arg1 = nullptr;
+                    Exporting::Helpers::RegisterValue* Arg2 = nullptr;
+
+                    if(A2->Type() == SemanticTypeRegisterRef){
+                        Arg2 = registerTable->GetVariable(stackTrace, A2, assembly, IndentCount);
+                        Arg1 = registerTable->GetVariable(stackTrace, A1, assembly, IndentCount);
+                    }
+                    else{
+                        Arg1 = registerTable->GetVariable(stackTrace, A1, assembly, IndentCount);
+                        Arg2 = registerTable->GetVariable(stackTrace, A2, assembly, IndentCount);
+                    }
 
                     // Compare Types
                     bool Calculated = false;
@@ -372,13 +394,12 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 
                                     Arguments.pop_back();
 
-                                    if(Arg1->Var && !Arg1->IsValue){
+                                    if(Arg1->Var->Type() != SemanticTypeLiteral){
                                         assembly += std::string(IndentCount*4, ' ') + "mov " + Arg1->get() + ", " + Arg2->get() + "\n";
-                                        assembly += std::string(IndentCount*4, ' ') + Arg1->save();
 
-                                        if(stackTrace->Size() - EntitiesInStack > 0){
-                                            std::cerr << "Assignment in incomplete operations" << std::endl;
-                                            return assembly;
+                                        std::string Save = Arg1->save();
+                                        if(Save.size() > 0){
+                                            assembly += std::string(IndentCount*4, ' ') + Save;
                                         }
                                     }
                                     else{
@@ -511,7 +532,7 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     }
 
                     if(!Calculated){
-                        std::cerr << "Incompatible Types: " << registerTable->r8.TypeID << " " << registerTable->r9.TypeID << std::endl;
+                        std::cerr << "Incompatible Types: " << Arg1->TypeID << " " << Arg2->TypeID << std::endl;
                         return assembly;
                     }
                 }
@@ -547,6 +568,13 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     // assembly += std::string(IndentCount*4, ' ') + registerTable->r8.set(var, false);
                     // assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, "r8");
                     Arguments.push_back(var);
+                }
+                else if(Params->Type() == SemanticTypeRegisterRef){
+                    RegisterRef* reg = (RegisterRef*)Params;
+
+                    // Load register
+                    // assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, reg->Register);
+                    Arguments.push_back(reg);
                 }
             }
 

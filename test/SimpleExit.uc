@@ -1,8 +1,6 @@
 int main(){
-    int i = -1;
-    i = i + 2 * (3 * 4);
-    if(i + 1 == 24) {
+    if(5 == 5){
         return 1;
     }
-    return i;
+    return 1;
 }

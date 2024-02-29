@@ -149,7 +149,6 @@ namespace Parsing
             SemanticOperationBitwiseLeftShift,
             SemanticOperationBitwiseRightShift,
             SemanticOperationTernary,
-            SemanticOperationFunctionCall,
             SemanticOperationArrayAccess,
             SemanticOperationMemberAccess,
             SemanticOperationPointerAccess,
@@ -161,7 +160,8 @@ namespace Parsing
             SemanticOperationDivision,
             SemanticOperationModulus,
             SemanticOperationIncrement,
-            SemanticOperationDecrement
+            SemanticOperationDecrement,
+            SemanticOperationFunctionCall
         };
 
         struct Operation : SemanticVariable

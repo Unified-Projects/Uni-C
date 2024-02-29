@@ -34,6 +34,8 @@ namespace Exporting
                 TypeID = value->TypeID;
             }
 
+            std::string get();
+
             std::string set(Parsing::SemanticVariables::Variable* variable, bool isPointer);
             std::string set(Parsing::SemanticVariables::SemLiteral* variable);
             std::string save();
@@ -128,6 +130,7 @@ namespace Exporting
 
             void NewSave(StackTrace* stack);
             std::string CorrectStack(StackTrace* stack, int IndentIndex);
+            std::string CorrectStackNoSaveDec(StackTrace* stack, int IndentIndex);
             RegisterValue* GetFreeReg(StackTrace* stack, std::string& ReturnString, int IndentIndex);
             void ReleaseReg(RegisterValue* reg);
             RegisterValue* GetVariable(StackTrace* stack, Parsing::SemanticVariables::SemanticVariable* Var, std::string& ReturnString, int IndentIndex);

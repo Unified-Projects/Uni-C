@@ -655,6 +655,28 @@ std::string RegisterTable::CorrectStack(StackTrace* stack, int IndentIndex){
     return "; Stack correction\n" + std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((Removed) * 8) + "\n";
 
 }
+
+std::string RegisterTable::CorrectStackNoSaveDec(StackTrace* stack, int IndentIndex){
+    if(SavePoint.size() == 0){
+        return "; No save point\n";
+    }
+
+    int size = SavePoint[SavePoint.size()-1];
+
+    int Removed = 0;
+
+    while(stack->Size() > size){
+        stack->Pop();
+        Removed++;
+    }
+
+    if(!Removed){
+        return ";; No stack correction needed\n";
+    }
+
+    return "; Stack correction\n" + std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((Removed) * 8) + "\n";
+}
+
 RegisterValue* RegisterTable::GetFreeReg(StackTrace* stack, std::string& ReturnString, int IndentIndex){
     if(r8.Var == nullptr){
         return &r8;
@@ -816,6 +838,23 @@ void RegisterTable::ReleaseReg(RegisterValue* reg){
     reg->Size = 0;
     reg->Value = 0;
     reg->TypeID = -1;
+}
+
+std::string RegisterValue::get(){
+    switch (this->Size)
+    {
+    case 8:
+        return this->Register;
+    case 4:
+        return this->Register1;
+    case 2:
+        return this->Register2;
+    case 1:
+        return this->Register3;
+
+    default:
+        return "; Unknown register error\n";
+    }
 }
 
 std::string RegisterValue::set(Parsing::SemanticVariables::Variable* variable, bool isPointer){

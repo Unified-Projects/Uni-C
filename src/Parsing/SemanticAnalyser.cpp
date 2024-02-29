@@ -212,6 +212,63 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
     return 0;
 }
 
+void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart){
+    int i = *tokenStart;
+
+    // Argument Start Token
+    int Start = i;
+
+    for(int ArgIndex = 0; ArgIndex < Func.Parameters.size(); ArgIndex++){
+        Operation* ArgumentOpeation = new Operation();
+        ArgumentOpeation->TypeID = SemanticOperationAssignment;
+        ArgumentOpeation->ParentScope = Parent->LocalScope;
+        ArgumentOpeation->LocalScope = Parent->LocalScope;
+        ArgumentOpeation->ScopePosition = Parent->NextScopePosition++;
+        ArgumentOpeation->Parent = Parent;
+
+        if(Func.Parameters.size() < ArgIndex+1){
+            std::cerr << "Error: Too Many Arguments at line " << lexer->getToken(i).fileLine << std::endl;
+            return;
+        }
+
+        VariableRef* id = new VariableRef();
+        id->Identifier = Func.Parameters[ArgIndex].Name;
+        id->ParentScope = ArgumentOpeation->LocalScope;
+        id->LocalScope = ArgumentOpeation->LocalScope;
+        id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
+        id->Parent = ArgumentOpeation;
+
+        ArgumentOpeation->Parameters.push_back(id);
+
+        if(Func.Parameters.size() - ArgIndex > 1){
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator);
+        }
+        else{
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd);
+        }
+
+        // Load Operator
+        Operation* op = new Operation();
+        op->TypeID = SemanticOperationMap[""];
+        op->ParentScope = ArgumentOpeation->LocalScope;
+        op->LocalScope = ArgumentOpeation->LocalScope;
+        op->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
+        op->Parent = ArgumentOpeation;
+
+        ArgumentOpeation->Parameters.push_back(op);
+
+        ArgIndex++;
+    }
+
+    if(lexer->getToken(i).tokenType == TokenTypes::LineEnd){
+        std::cerr << "Error: Expected ')' at line " << lexer->getToken(i).fileLine << std::endl;
+        return;
+    }
+
+    tokenStart[0] = i;
+    return;
+}
+
 SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart){
     int i = *tokenStart;
     Token token = Lexer->getToken(i);
@@ -311,6 +368,49 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     std::cerr << "Opeator not supported '" << Lexer->getToken(i+1).tokenValue << "' at line " << Lexer->getToken(i+1).fileLine << std::endl;
                     return nullptr;
                 }
+            }
+            else if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
+                // Check this is a function
+                if(SemanticFunctionMap.find(VariableName) == SemanticFunctionMap.end()){
+                    std::cerr << "Error: Function Not Defined at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                // Function Call
+                Operation* op = new Operation();
+                op->TypeID = SemanticOperationFunctionCall;
+                op->ParentScope = Parent->LocalScope;
+                op->LocalScope = Parent->LocalScope;
+                op->ScopePosition = Parent->NextScopePosition++;
+                op->Parent = Parent;
+
+                // Add first paramenter of the identifier
+                VariableRef* id = new VariableRef();
+                id->Identifier = VariableName;
+                id->ParentScope = op->LocalScope;
+                id->LocalScope = op->LocalScope;
+                id->ScopePosition = op->Parent->NextScopePosition++;
+                id->Parent = op;
+
+                op->Parameters.push_back(id);
+
+                i+=2; // Start parathensis
+
+                // Get Arguments
+                EvaluateFuncArguments(SemanticFunctionMap[VariableName], op, &op->Parameters, Lexer, &i);
+                i++; // End parathensis
+
+                // Current Token is line end
+                if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
+                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    return nullptr;
+                }
+
+                Store->push_back(op);
+                Result = op;
+            }
+            else{
+                std::cerr << "Unexpected Identifier at line " << Lexer->getToken(i).fileLine << std::endl;
             }
         }
         break;
@@ -899,43 +999,42 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                         // Check for Parameters
                         if(Lexer->getToken(i+2).tokenType == TokenTypes::ArgumentStart){
                             int ArgumentEndIndex = i+3; // Index if no args
-                            if(Lexer->getToken(i+3).tokenType != TokenTypes::ArgumentEnd){
+                            if(Lexer->getToken(ArgumentEndIndex).tokenType != TokenTypes::ArgumentEnd){
                                 int Offset = 0;
                                 // Load parameters
-                                while(Lexer->getToken(i+3 + Offset).tokenType == TokenTypes::TypeDef || (Lexer->getToken(i+3 + Offset).tokenType == TokenTypes::Identifier && SemanticTypeMap[Lexer->getToken(i+3 + Offset).tokenValue].Size > 0)){
+                                while(Lexer->getToken(ArgumentEndIndex + Offset).tokenType == TokenTypes::TypeDef || (Lexer->getToken(ArgumentEndIndex + Offset).tokenType == TokenTypes::Identifier && SemanticTypeMap[Lexer->getToken(ArgumentEndIndex + Offset).tokenValue].Size > 0)){
                                     // Type
-                                    std::string Type = Lexer->getToken(i + 3 + Offset).tokenValue;
+                                    std::string Type = Lexer->getToken(ArgumentEndIndex + Offset).tokenValue;
 
                                     // Identifier
-                                    std::string ID = Lexer->getToken(i + 4 + Offset).tokenValue;
+                                    std::string ID = Lexer->getToken(ArgumentEndIndex + 1 + Offset).tokenValue;
 
                                     // Default Value
                                     std::string InitVal = "";
 
-                                    if(Lexer->getToken(i + 5 + Offset).tokenType == TokenTypes::ArgumentSeparator){
+                                    if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::ArgumentSeparator){
                                         Offset += 3;
                                     }
-                                    else if(Lexer->getToken(i + 5 + Offset).tokenType != TokenTypes::ArgumentEnd){
-                                        if(Lexer->getToken(i + 5 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(i + 5 + Offset).tokenValue == std::string("=")){
-                                            if(Lexer->getToken(i + 5 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(i + 5 + Offset).tokenValue == std::string("=")){
+                                    else if(Lexer->getToken(ArgumentEndIndex + Offset).tokenType != TokenTypes::ArgumentEnd){
+                                        if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenValue == std::string("=")){
+                                            if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenValue == std::string("=")){
                                                 // Check for Literal
-                                                if(Lexer->getToken(i + 6 + Offset).tokenType == TokenTypes::Literal){
-                                                    InitVal = Lexer->getToken(i + 6 + Offset).tokenValue;
+                                                if(Lexer->getToken(ArgumentEndIndex + 3 + Offset).tokenType == TokenTypes::Literal){
+                                                    InitVal = Lexer->getToken(ArgumentEndIndex + 3 + Offset).tokenValue;
 
-                                                    if(Lexer->getToken(i + 7 + Offset).tokenType != TokenTypes::ArgumentEnd && Lexer->getToken(i + 7 + Offset).tokenType != TokenTypes::ArgumentSeparator){
-                                                        std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i + 7 + Offset).fileLine << std::endl;
+                                                    if(Lexer->getToken(ArgumentEndIndex + 4 + Offset).tokenType != TokenTypes::ArgumentEnd && Lexer->getToken(ArgumentEndIndex + 4 + Offset).tokenType != TokenTypes::ArgumentSeparator){
+                                                        std::cerr << "Error: Expected ')' at line " << Lexer->getToken(ArgumentEndIndex + 4 + Offset).fileLine << std::endl;
                                                         return;
                                                     }
+
+                                                    // Offset Correction
+                                                    Offset += 2;
                                                 }
                                                 else{
                                                     // Custom Initialiser TBD // TODO
-                                                    std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i + 6 + Offset).fileLine << std::endl;
+                                                    std::cerr << "Error: Expected Literal at line " << Lexer->getToken(ArgumentEndIndex + 3 + Offset).fileLine << std::endl;
                                                 }
                                             }
-                                        }
-                                        else{
-                                            std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i + 5 + Offset).fileLine << std::endl;
-                                            return;
                                         }
                                         Offset += 2;
                                     }
@@ -943,12 +1042,12 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                                     // Load to Parameter Map
                                     Parameters.push_back({Type, ID, InitVal});
                                 }
-                                if(Lexer->getToken(i+3+Offset).tokenType != TokenTypes::ArgumentEnd){
+                                if(Lexer->getToken(ArgumentEndIndex+Offset).tokenType != TokenTypes::ArgumentEnd){
                                     std::cerr << "Error: Expected ')' or Non-Type parameter present at line " << Lexer->getToken(i+3).fileLine << std::endl;
                                     return;
                                 }
 
-                                ArgumentEndIndex = i+3+Offset;
+                                ArgumentEndIndex += Offset;
                             }
 
                             // Load Block

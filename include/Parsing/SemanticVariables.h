@@ -161,7 +161,8 @@ namespace Parsing
             SemanticOperationModulus,
             SemanticOperationIncrement,
             SemanticOperationDecrement,
-            SemanticOperationFunctionCall
+            SemanticOperationFunctionCall,
+            SemanticOperationArgument
         };
 
         struct Operation : SemanticVariable

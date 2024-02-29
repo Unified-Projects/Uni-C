@@ -693,6 +693,9 @@ std::string AssemblyGenerator::RecurseTreeForData(SemanticVariable* Block){
         break;
     case SemanticTypeFunction:
         {
+            for(auto& Lines : ((Function*)Block)->Parameters){
+                Data += RecurseTreeForData(Lines);
+            }
             for(auto& Lines : ((Function*)Block)->Block){
                 Data += RecurseTreeForData(Lines);
             }
@@ -744,7 +747,7 @@ std::string AssemblyGenerator::StoreVariable(Variable* Var){
     std::string Data = "";
 
     // A Variable Only Needs Its Initial Data Stored (If Exists)
-    if(Var->InitValue != ""){
+    if(Var->InitValue.size() > 0){
         if(Var->TypeID == SemanticTypeMap["int"].TypeID){
             // Value is a integer
             Data += GetSymbol(Var) + " dd " + Var->InitValue + "\n";
@@ -780,6 +783,44 @@ std::string AssemblyGenerator::StoreVariable(Variable* Var){
         else if(Var->TypeID == SemanticTypeMap["string"].TypeID){
             // Value is a string
             Data += GetSymbol(Var) + " db " + Var->InitValue + ", 0\n";
+        }
+    }
+    else{
+        if(Var->TypeID == SemanticTypeMap["int"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dd " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["uint"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dd " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["char"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " db " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["uchar"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " db " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["short"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dw " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["ushort"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dw " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["long"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dq " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["ulong"].TypeID){
+            // Value is a integer
+            Data += GetSymbol(Var) + " dq " + "0" + "\n";
+        }
+        else if(Var->TypeID == SemanticTypeMap["string"].TypeID){
+            // Value is a string
+            Data += GetSymbol(Var) + " db " + "0" + ", 0\n";
         }
     }
 

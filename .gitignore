@@ -45,3 +45,4 @@ test.obj
 linker.ld
 
 *.asm
+!builtin.asm

@@ -366,21 +366,21 @@ void ScopeTree::GenerateTree(SemanticVariable* Root, ScopeTreeEntry* Parent){
 
 #include <iostream>
 
-// TODO : Follow from above local scope position
-
 Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindVariable(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope){
     // Find entry to traverse up
     ScopeTreeEntry* entry = ScopeMap[Scope];
+    ScopeTreeEntry* lastEntry = entry;
 
     while(entry != nullptr){;
         for(auto var : entry->Variables){
             if(((Variable*)var->Var)->Identifier == Name){
-                if(var->Var->ScopePosition > entry->ScopeLocal && entry->Var->ParentScope == entry->Var->LocalScope)
+                if(var->Var->ScopePosition > lastEntry->ScopeLocal)
                     continue;
 
                 return var->Var;
             }
         }
+        lastEntry = entry;
         entry = entry->parent;
     }
 
@@ -390,16 +390,18 @@ Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindVariable(std::strin
 Parsing::SemanticVariables::SemanticVariable* ScopeTree::FindFunction(std::string& Name, Parsing::SemanticVariables::SemanticVariable* Scope){
     // Find entry to traverse up
     ScopeTreeEntry* entry = ScopeMap[Scope];
+    ScopeTreeEntry* lastEntry = entry;
 
     while(entry != nullptr){;
         for(auto var : entry->Functions){
             if(((Function*)var->Var)->Identifier == Name){
-                if(var->Var->ScopePosition > entry->ScopeLocal)
+                if(var->Var->ScopePosition > lastEntry->ScopeLocal)
                     continue;
 
                 return var->Var;
             }
         }
+        lastEntry = entry;
         entry = entry->parent;
     }
 
@@ -709,13 +711,32 @@ std::string RegisterTable::CorrectStack(StackTrace* stack, int IndentIndex){
         return "; No save point\n";
     }
 
+    std::string Extra = "";
+
     int size = SavePoint[SavePoint.size()-1];
     SavePoint.pop_back();
 
     int Removed = 0;
 
     while(stack->Size() > size){
-        stack->Pop();
+        auto reg = stack->Pop();
+
+        // if(reg.Var != nullptr){
+        //     if(reg.Var->Type() == SemanticTypeVariable){
+        //         // Is global
+        //         if(reg.Var->Parent->Type() == SemanticTypeScope){
+        //             auto newReg = this->GetVariable(stack, reg.Var, Extra, IndentIndex);
+        //             Extra += newReg->save();
+        //             this->ReleaseReg(newReg);
+        //         }
+        //         else{
+        //             // Reload its initial value
+        //             auto newReg = this->GetVariable(stack, reg.Var, Extra, IndentIndex);
+        //             Extra += std::string(IndentIndex*4, ' ') + "mov " + newReg->Register + ", [" + GetSymbol(reg.Var) + "]\n";
+        //         }
+        //     }
+        // }
+
         Removed++;
     }
 
@@ -723,7 +744,7 @@ std::string RegisterTable::CorrectStack(StackTrace* stack, int IndentIndex){
         return ";; No stack correction needed\n";
     }
 
-    return "; Stack correction\n" + std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((Removed) * 8) + "\n";
+    return "; Stack correction\n" + Extra + std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((Removed) * 8) + "\n";
 
 }
 

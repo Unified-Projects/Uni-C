@@ -121,9 +121,6 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
             
             case SemanticStatementIf:
                 {
-                    // Stack save point
-                    registerTable->NewSave(stackTrace);
-
                     if(CompilerInformation::DebugAll()){
                         assembly += ";; If Statement\n";
                     }
@@ -237,9 +234,6 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 
                     // End of If
                     assembly += std::string(IndentCount*4, ' ') + "IfEnd_" + GetSymbol(Block) + ":\n";
-                    
-                    // Restore stack
-                    assembly += registerTable->CorrectStack(stackTrace, IndentCount);
                 }
                 break;
             
@@ -254,6 +248,45 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
             int EntitiesInStack = stackTrace->Size();
 
             std::vector<SemanticVariable*> Arguments = {};
+
+            if(((Operation*)Block)->TypeID == SemanticOperationFunctionCall){
+                if(((Operation*)Block)->TypeID == SemanticOperationFunctionCall){
+                    if(CompilerInformation::DebugAll()){
+                        assembly += ";; Function Call\n";
+                    }
+
+                    // Find function
+                    FunctionRef* FuncRef = (FunctionRef*)((Operation*)Block)->Parameters[0];
+                    auto Func = scopeTree->FindFunction(FuncRef->Identifier, FuncRef);
+
+                    if(!Func || Func->Type() != SemanticTypeFunction){
+                        std::cerr << "Function Not Found: " << FuncRef->Identifier << std::endl;
+                        return assembly;
+                    }
+
+                    // Load paramenters
+                    bool Skipped = false;
+                    for(auto& Params : ((Operation*)Block)->Parameters){
+                        if(!Skipped){
+                            Skipped = true;
+                            continue;
+                        }
+                        if(Params->Type() == SemanticTypeOperation){
+                            assembly += ConvertGeneric(Params, IndentCount);
+                        }
+                    }
+
+                    auto reg = registerTable->GetVariable(stackTrace, FuncRef, assembly, IndentCount);
+
+                    // Call Function
+                    assembly += std::string(IndentCount*4, ' ') + "call " + FuncRef->Identifier + "\n";
+                    registerTable->ReleaseReg(&registerTable->rax);
+                    assembly += std::string(IndentCount*4, ' ') + "mov " + reg->get() + ", eax\n";
+
+                    Arguments.push_back(FuncRef);
+                    return assembly;
+                }
+            }
 
             // Use Stack For Operations
             for(auto& Params : ((Operation*)Block)->Parameters){
@@ -576,6 +609,10 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     // assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, reg->Register);
                     Arguments.push_back(reg);
                 }
+                else{
+                    std::cerr << "Unknown Operation Type: " << Params->Type() << std::endl;
+                    return assembly;
+                }
             }
 
             // if(stackTrace->Size() - EntitiesInStack >= 1){
@@ -701,7 +738,7 @@ extern MoveFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName
         }
     }
 
-    return ";; This was automatically generated using the Uni-C Compiler\nbits 64\n\n" + dataAssembly + "DataBlockEnd:\n\n" + codeAssembly + "FunctionSpaceEnd:\n";
+    return ";; This was automatically generated using the Uni-C Compiler\nbits 64\n\ndefault rel\n\n" + dataAssembly + "DataBlockEnd:\n\n" + codeAssembly + "FunctionSpaceEnd:\n";
 }
 
 std::string AssemblyGenerator::RecurseTreeForData(SemanticVariable* Block){

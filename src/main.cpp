@@ -132,7 +132,7 @@ int main(int argc, char* argv[]){
             }
             if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeRegisterRef){
                 Parsing::SemanticVariables::RegisterRef* type = (Parsing::SemanticVariables::RegisterRef*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Register: " << type->Register << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
+                std::cout << std::string(depth * 2, ' ') << "Register: " << type->Register << " Size: " << type->Size << " Type: " << type->typeID << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
             }
             if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeFunction){
                 Parsing::SemanticVariables::Function* func = (Parsing::SemanticVariables::Function*)scope;

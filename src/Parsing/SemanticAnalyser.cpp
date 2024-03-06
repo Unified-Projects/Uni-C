@@ -23,7 +23,7 @@ std::map<std::string, SemanticTypeDefinition> SemanticTypeMap = {
     std::pair<std::string, SemanticTypeDefinition>("uchar", {"uchar", 0, 1, {}, nullptr, 0, 0, 9}),
     std::pair<std::string, SemanticTypeDefinition>("bool", {"bool", 0, 1, {}, nullptr, 0, 0, 10}),
     std::pair<std::string, SemanticTypeDefinition>("void", {"void", 0, 1, {}, nullptr, 0, 0, 11}),
-    std::pair<std::string, SemanticTypeDefinition>("string", {"string", 0, 1, {}, nullptr, 0, 0, 12}),
+    std::pair<std::string, SemanticTypeDefinition>("string", {"string", 0, 16, {}, nullptr, 0, 0, 12}),
     std::pair<std::string, SemanticTypeDefinition>("*", {"*", 0, 8, {}, nullptr, 0, 0, 13}), // TODO Pointers
 };
 
@@ -62,17 +62,32 @@ int SemanticNextTypeID = 13;
 
 std::map<std::string, SemanticFunctionDeclaration> SemanticFunctionMap = {
     // FunctionName : DefinedScope
+    {"PrintString", {"PrintString", "void", {{"string", "Message", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
 };
 
 std::map<int, SemanticVariable*> SemanticScopeMap = {
     // ScopePosition : Scope
 };
 
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0);
-SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart);
-void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart);
+std::vector<std::string> ExternFunctionsNeeded = {
 
-void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart){
+};
+
+int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0, Function* func = nullptr);
+SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func = nullptr);
+void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart, Function* func);
+
+std::map<int, std::string> SemanticFunctionArgs{
+    // ArgNumber : register
+    {0, "rdi"},
+    {1, "rsi"},
+    {2, "rdx"},
+    {3, "rcx"},
+    {4, "r8"},
+    {5, "r9"},
+};
+
+void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart, Function* func){
     int i = *tokenStart;
 
     // Argument Start Token
@@ -91,20 +106,30 @@ void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* P
             return;
         }
 
-        VariableRef* id = new VariableRef();
-        id->Identifier = Func.Parameters[ArgIndex].Name;
+        // VariableRef* id = new VariableRef();
+        // id->Identifier = Func.Parameters[ArgIndex].Name;
+        // id->ParentScope = ArgumentOpeation->LocalScope;
+        // id->LocalScope = ArgumentOpeation->LocalScope;
+        // id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
+        // id->Parent = ArgumentOpeation;
+
+        // Use register arguments instead of a variables
+        RegisterRef* id = new RegisterRef();
+        id->Register = SemanticFunctionArgs[ArgIndex];
         id->ParentScope = ArgumentOpeation->LocalScope;
         id->LocalScope = ArgumentOpeation->LocalScope;
         id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
         id->Parent = ArgumentOpeation;
+        id->Size = SemanticTypeMap[Func.Parameters[ArgIndex].Type].Size;
+        id->typeID = SemanticTypeMap[Func.Parameters[ArgIndex].Type].TypeID;
 
         ArgumentOpeation->Parameters.push_back(id);
 
         if(Func.Parameters.size() - ArgIndex > 1){
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator);
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator, 0, func);
         }
         else{
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd);
+            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd, 0, func);
         }
 
         // Load Operator
@@ -131,7 +156,7 @@ void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* P
     return;
 }
 
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end, int EndOffset){
+int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end, int EndOffset, Function* func){
     int i = *tokenStart;
 
     // Find Distance to line end
@@ -196,7 +221,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
         case TokenTypes::Identifier:
             {
                 if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
-                    auto F = Evaluate(OpParent, &OpParent->Parameters, Lexer, &i);
+                    auto F = Evaluate(OpParent, &OpParent->Parameters, Lexer, &i, func);
                     if(F == nullptr){
                         return -1;
                     }
@@ -205,15 +230,48 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                     }
                 }
 
-                // Load variable reference
-                VariableRef* id = new VariableRef();
-                id->Identifier = Operand.tokenValue;
-                id->ParentScope = OpParent->LocalScope;
-                id->LocalScope = OpParent->LocalScope;
-                id->ScopePosition = OpParent->Parent->NextScopePosition++;
-                id->Parent = OpParent;
+                int ArgNumber = -1;
+                bool Found = false;
+                if(func){
+                    for(auto& Args : func->Parameters){
+                        if(Args->Identifier == Operand.tokenValue){
+                            ArgNumber++;
+                            Found = true;
+                            break;
+                        }
+                        ArgNumber++;
+                    }
+                }
 
-                OpParent->Parameters.push_back(id);
+                if(ArgNumber != -1 && Found){
+                    // Load argument reference
+                    RegisterRef* id = new RegisterRef();
+                    id->Register = SemanticFunctionArgs[ArgNumber];
+                    id->ParentScope = OpParent->LocalScope;
+                    id->LocalScope = OpParent->LocalScope;
+                    id->ScopePosition = OpParent->Parent->NextScopePosition++;
+                    id->Parent = OpParent;
+                    id->typeID = func->Parameters[ArgNumber]->TypeID;
+
+                    for(auto x : SemanticTypeMap){
+                        if(x.second.TypeID == func->Parameters[ArgNumber]->TypeID){
+                            id->Size = x.second.Size;
+                        }
+                    }
+
+                    OpParent->Parameters.push_back(id);
+                }
+                else{
+                    // Load variable reference
+                    VariableRef* id = new VariableRef();
+                    id->Identifier = Operand.tokenValue;
+                    id->ParentScope = OpParent->LocalScope;
+                    id->LocalScope = OpParent->LocalScope;
+                    id->ScopePosition = OpParent->Parent->NextScopePosition++;
+                    id->Parent = OpParent;
+
+                    OpParent->Parameters.push_back(id);
+                }
 
                 i++;
             }
@@ -283,7 +341,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
     return 0;
 }
 
-SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart){
+SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func){
     int i = *tokenStart;
     Token token = Lexer->getToken(i);
 
@@ -364,7 +422,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     op->Parent = Parent;
 
                     // Get Operand
-                    if(EvaluateOperands(op, Lexer, &i)){
+                    if(EvaluateOperands(op, Lexer, &i, TokenTypes::LineEnd, 0, func)){
                         std::cerr << "Operator Invalid at line " << Lexer->getToken(i+1).fileLine << std::endl;
                         return nullptr;
                     }
@@ -390,6 +448,12 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     return nullptr;
                 }
 
+                if(SemanticFunctionMap[VariableName].Builtin){
+                    if(std::find(ExternFunctionsNeeded.begin(), ExternFunctionsNeeded.end(), VariableName) == ExternFunctionsNeeded.end()){
+                        ExternFunctionsNeeded.push_back(VariableName);
+                    }
+                }
+
                 // Function Call
                 Operation* op = new Operation();
                 op->TypeID = SemanticOperationFunctionCall;
@@ -412,7 +476,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 i+=2; // Start parathensis
 
                 // Get Arguments
-                EvaluateFuncArguments(SemanticFunctionMap[VariableName], op, &op->Parameters, Lexer, &i);
+                EvaluateFuncArguments(SemanticFunctionMap[VariableName], op, &op->Parameters, Lexer, &i, func);
                 i++; // End parathensis
 
                 // Current Token is line end
@@ -463,10 +527,11 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     id->LocalScope = op->LocalScope;
                     id->ScopePosition = op->Parent->NextScopePosition++;
                     id->Parent = op;
+                    id->typeID = 0;
 
                     op->Parameters.push_back(id);
 
-                    EvaluateOperands(op, Lexer, &i);
+                    EvaluateOperands(op, Lexer, &i, TokenTypes::LineEnd, 0, func);
 
                     Operation* assinger = new Operation();
                     assinger->TypeID = SemanticOperationAssignment;
@@ -566,7 +631,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->Parent = ifStatement;
 
                 // Operation
-                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
 
                 // Add operation to ifStatement
                 ifStatement->Parameters.push_back(op);
@@ -600,7 +665,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 i++;
                 
                 // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
 
                 // Non-Ended
                 if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
@@ -615,7 +680,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 // Do we have a else or a else if
                 while(Lexer->getToken(i+1).tokenType == TokenTypes::Statement && Lexer->getToken(i+1).tokenValue == "else"){
                     i++;
-                    Evaluate(ifStatement, &ifStatement->Alternatives, Lexer, &i);
+                    Evaluate(ifStatement, &ifStatement->Alternatives, Lexer, &i, func);
                 }
             }
             else if(token.tokenValue == "else" && Lexer->getToken(i+1).tokenValue == "if" && Lexer->getToken(i+1).tokenType == TokenTypes::Statement){
@@ -651,7 +716,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->Parent = ifStatement;
 
                 // Operation
-                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
+                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
 
                 // Add operation to ifStatement
                 ifStatement->Parameters.push_back(op);
@@ -685,7 +750,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 i++;
                 
                 // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
 
                 // Non-Ended
                 if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
@@ -728,7 +793,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 i+=2;
                 
                 // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i);
+                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
 
                 // Non-Ended
                 if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
@@ -1132,6 +1197,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                                         ReturnType,
                                         Parameters,
                                         LexerScope->LocalScope,
+                                        false,
                                         Lexer,
                                         blockStart,
                                         blockEnd,
@@ -1221,6 +1287,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                 // Check we are not in any structs or functions using typeMap and functionMap to see what blocks are not-accessable
                 bool inFunction = false;
                 for(auto& fp : SemanticFunctionMap){
+                    if(fp.second.Builtin) continue;
                     if(i >= fp.second.BlockStart && i <= fp.second.BlockEnd){
                         inFunction = true;
                         break;
@@ -1286,6 +1353,11 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
     {
         // TODO Fix embeded functions so that they dont get parsed as global functions
         for(auto& function : SemanticFunctionMap){
+            // Is the function builtin
+            if(function.second.Builtin){
+                continue;
+            }
+
             // Load Scope
             Scope* LexerScope = SemanticLexerScopeMap[function.second.Lexer];
 
@@ -1321,7 +1393,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 
             // Load block data
             for(int i = function.second.TokenIndexOfBlockStart + 1; i < function.second.TokenIndexOfBlockEnd; i++){
-                SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i);
+                SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i, func);
                 if(!Result){
                     std::cerr << "Error: Invalid Syntax at line " << function.second.Lexer->getToken(i).fileLine << std::endl;
                     return;

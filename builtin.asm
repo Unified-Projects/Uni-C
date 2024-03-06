@@ -6,13 +6,13 @@ extern GetStdHandle                         ;windows API to get the for the cons
 default rel                                 ;default to using RIP-relative addressing
 
 section .data:
+
+GenericConstants:
     STD_INPUT_HANDLE equ -10
     STD_OUTPUT_HANDLE equ -11
     STD_ERROR_HANDLE equ -12
 
-    ; Convertions
-    digits db "0123456789"
-    NULL db 0
+CustomConstants:
 
     ; TEST DATA
     testString db "Hello, World!", 0
@@ -20,21 +20,27 @@ section .data:
 
 section .bss:
     ; Reserved data
-    Print_Written: resb 4
-    Print_Chars: resb 4
+    _PrintS_Print_Written: resb 4
+    _PrintS_Print_Chars: resb 4
 
 section .text:
+global _PrintS
 _PrintS: ; Print String
+    ; sub rsp, 40
     mov rcx, STD_OUTPUT_HANDLE
     call GetStdHandle
 
     mov rcx, rax
-    mov r9, Print_Written
+    mov r9, _PrintS_Print_Written
 
-    mov rax, qword 0
-    mov qword [rsp + 0x20], rax
+    ; mov rax, qword 0
+    ; mov qword [rsp + 0x20], rax
+
+    mov rdx, [rdi + 8]
+    mov r8, [rdi]
 
     call WriteConsoleA
+    ; add rsp, 40
     ret
 
 global _start

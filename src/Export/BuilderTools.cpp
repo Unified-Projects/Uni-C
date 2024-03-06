@@ -895,14 +895,14 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
             // Is it in the stack
             for(auto i = 0; i < stack->Size(); i++){
                 if(stack->Peek(i).Var == Var){
-                    ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+                    ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
                     stack->Peek(i).Var = nullptr;
                     ReturnString += std::string(IndentIndex*4, ' ') + "pop " + Reg->Register + "\n";
-                    ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+                    ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
 
                     Reg->Var = Var;
                     Reg->Size = Ref->Size;
-                    Reg->TypeID = 0;
+                    Reg->TypeID = Ref->typeID;
 
                     Allocations.push_back(Reg);
 
@@ -913,6 +913,7 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
             Reg->Var = Var;
             Reg->Size = Ref->Size;
             Reg->TypeID = 0;
+            Reg->TypeID = Ref->typeID;
 
             Allocations.push_back(Reg);
 
@@ -1005,14 +1006,14 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
         // Is it in the stack
         for(auto i = 0; i < stack->Size(); i++){
             if(stack->Peek(i).Var == Var){
-                ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+                ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
                 stack->Peek(i).Var = nullptr;
                 ReturnString += std::string(IndentIndex*4, ' ') + "pop " + FreeReg->Register + "\n";
-                ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+                ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
 
                 FreeReg->Var = Var;
                 FreeReg->TypeID = 0;
-                FreeReg->Size = ((Operation*)Var)->EndSize;
+                FreeReg->Size = 4;
 
                 Allocations.push_back(FreeReg);
 
@@ -1022,7 +1023,7 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
 
         FreeReg->Var = Var;
         FreeReg->TypeID = 0;
-        FreeReg->Size = ((Operation*)Var)->EndSize;
+        FreeReg->Size = 4;
 
         Allocations.push_back(FreeReg);
 
@@ -1032,9 +1033,9 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
     // Is it in the stack
     for(auto i = 0; i < stack->Size(); i++){
         if(stack->Peek(i).Var == Var){
-            ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i) * 8) + "\n";
+            ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
             ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register, i);
-            ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i-1) * 8) + "\n";
+            ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
             auto Reg = stack->Peek(i);
             FreeReg->Update(&Reg);
             Allocations.push_back(FreeReg);
@@ -1054,6 +1055,44 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
     return FreeReg;
 }
 
+std::string RegisterTable::PushAll(StackTrace* stack, std::vector<std::string> Exclude, int IndentIndex){
+    std::string Ret = "";
+    std::vector<std::string> Regs = {"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"};
+    std::map<std::string, RegisterValue*> RegsPhys = {
+        {"rax", &rax},
+        {"rbx", &rbx},
+        {"rcx", &rcx},
+        {"rdx", &rdx},
+        {"rsi", &rsi},
+        {"rdi", &rdi},
+        {"rbp", &rbp},
+        {"rsp", &rsp},
+        {"r8", &r8},
+        {"r9", &r9},
+        {"r10", &r10},
+        {"r11", &r11},
+        {"r12", &r12},
+        {"r13", &r13},
+        {"r14", &r14},
+        {"r15", &r15}
+    };
+    for(auto r : Regs){
+        if(RegsPhys[r]->Var == nullptr){
+            continue;
+        }
+
+        if(Exclude.size() > 0){
+            if(std::find(Exclude.begin(), Exclude.end(), r) != Exclude.end()){
+                continue;
+            }
+        }
+
+        Ret += std::string(IndentIndex*4, ' ') + PushToStack(stack, r);
+        ReleaseReg(RegsPhys[r]);
+    }
+    return Ret;
+}
+
 void RegisterTable::ReleaseReg(RegisterValue* reg){
     this->Allocations.remove(reg);
     reg->Var = nullptr;
@@ -1067,6 +1106,8 @@ void RegisterTable::ReleaseReg(RegisterValue* reg){
 std::string RegisterValue::get(){
     switch (this->Size)
     {
+    case 16:
+        return this->Register; // Strings
     case 8:
         return this->Register;
     case 4:
@@ -1168,11 +1209,15 @@ std::string RegisterValue::set(Parsing::SemanticVariables::SemLiteral* variable)
         return this->set((uint8_t)this->Value);
     }
     else if(variable->TypeID == SemanticTypeMap["void"].TypeID){
+        std::cerr << "Attempted to set void" << std::endl;
         return "; Cannot set void\n";
     }
     else if(variable->TypeID == SemanticTypeMap["string"].TypeID){
-        // Would store size in bytes as string length
-        return "; Cannot set string\n";
+        this->IsPointer = true;
+        this->IsValue = true;
+        this->Size = 16;
+        this->Value = -1;
+        return "mov " + this->Register + ", " + GetSymbol(variable) + "\n";
     }
     
     std::cerr << "Unknown type: " << variable->TypeID << std::endl;

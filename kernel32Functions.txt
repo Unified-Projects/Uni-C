@@ -1,0 +1,56 @@
+extern ExitProcess; rcx DWORD ExitCode
+extern CreateFileA; rcx LPCSTR lpFileName, rdx DWORD dwDesiredAccess
+extern CreateFileW; rcx LPCWSTR lpFileName, rdx DWORD dwDesiredAccess
+extern ReadFile; rcx HANDLE hFile, rdx LPVOID lpBuffer
+extern WriteFile; rcx HANDLE hFile, rdx LPCVOID lpBuffer
+extern CloseHandle; rcx HANDLE hObject
+extern CreateThread; rcx LPSECURITY_ATTRIBUTES lpThreadAttributes, rdx SIZE_T dwStackSize
+extern CreateProcessA; rcx LPCSTR lpApplicationName, rdx LPSTR lpCommandLine
+extern CreateProcessW; rcx LPCWSTR lpApplicationName, rdx LPWSTR lpCommandLine
+extern Sleep; rcx DWORD dwMilliseconds
+extern GetTickCount
+extern GetLastError
+extern VirtualAlloc; rcx SIZE_T dwSize, rdx DWORD flAllocationType
+extern VirtualFree; rcx LPVOID lpAddress, rdx SIZE_T dwSize
+extern GetModuleHandleA; rcx LPCSTR lpModuleName
+extern GetModuleHandleW; rcx LPCWSTR lpModuleName
+extern GetProcAddress; rcx HMODULE hModule, rdx LPCSTR lpProcName
+extern LoadLibraryA; rcx LPCSTR lpLibFileName
+extern LoadLibraryW; rcx LPCWSTR lpLibFileName
+extern FreeLibrary; rcx HMODULE hLibModule
+extern WaitForSingleObject; rcx HANDLE hHandle, rdx DWORD dwMilliseconds
+extern GetCommandLineA
+extern GetCommandLineW
+extern GetTickCount64
+extern GetCurrentThreadId
+extern GetProcessId; rcx HANDLE Process
+extern GetModuleFileNameA; rcx HMODULE hModule, rdx LPSTR lpFilename
+extern GetModuleFileNameW; rcx HMODULE hModule, rdx LPWSTR lpFilename
+extern GetSystemTime; rcx LPSYSTEMTIME lpSystemTime
+extern SetConsoleCursorPosition; rcx HANDLE hConsoleOutput, rdx COORD dwCursorPosition
+extern GetConsoleScreenBufferInfo; rcx HANDLE hConsoleOutput, rdx PCONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo
+extern SetConsoleTextAttribute; rcx HANDLE hConsoleOutput, rdx WORD wAttributes
+extern GetConsoleMode; rcx HANDLE hConsoleHandle, rdx LPDWORD lpMode
+extern SetConsoleMode; rcx HANDLE hConsoleHandle, rdx DWORD dwMode
+extern GetCurrentProcess
+extern SetProcessAffinityMask; rcx HANDLE hProcess, rdx DWORD_PTR dwProcessAffinityMask
+extern GetThreadPriority; rcx HANDLE hThread
+extern SetThreadPriority; rcx HANDLE hThread, rdx int nPriority
+extern GetSystemInfo; rcx LPSYSTEM_INFO lpSystemInfo
+extern QueryPerformanceCounter; rcx PLARGE_INTEGER lpPerformanceCount
+extern GetEnvironmentVariableA; rcx LPCSTR lpName, rdx LPSTR lpBuffer
+extern GetEnvironmentVariableW; rcx LPCWSTR lpName, rdx LPWSTR lpBuffer
+extern SetEnvironmentVariableA; rcx LPCSTR lpName, rdx LPCSTR lpValue
+extern SetEnvironmentVariableW; rcx LPCWSTR lpName, rdx LPCWSTR lpValue
+extern GetFileSize; rcx HANDLE hFile, rdx LPDWORD lpFileSizeHigh
+extern SetFilePointer; rcx HANDLE hFile, rdx LONG lDistanceToMove
+extern GetTempPathA; rcx DWORD nBufferLength, rdx LPSTR lpBuffer
+extern GetTempPathW; rcx DWORD nBufferLength, rdx LPWSTR lpBuffer
+extern GetTempFileNameA; rcx LPCSTR lpPathName, rdx LPCSTR lpPrefixString
+extern GetTempFileNameW; rcx LPCWSTR lpPathName, rdx LPCWSTR lpPrefixString
+extern DeleteFileA; rcx LPCSTR lpFileName
+extern DeleteFileW; rcx LPCWSTR lpFileName
+extern CopyFileA; rcx LPCSTR lpExistingFileName, rdx LPCSTR lpNewFileName
+extern CopyFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName
+extern MoveFileA; rcx LPCSTR lpExistingFileName, rdx LPCSTR lpNewFileName
+extern MoveFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName

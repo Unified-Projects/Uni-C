@@ -1,6 +1,8 @@
 #include <Export/AssemblyGenerator.h>
 #include <CompilerInformation.h>
 
+#include <Export/InternalFunctions.h>
+
 using namespace Exporting;
 using namespace Exporting::Helpers;
 using namespace Parsing;
@@ -17,6 +19,9 @@ It will move around registers and move them into stacks if they are not needed
 */
 
 extern std::map<std::string, SemanticTypeDefinition> SemanticTypeMap;
+extern std::map<std::string, SemanticFunctionDeclaration> SemanticFunctionMap;
+extern std::vector<std::string> ExternFunctionsNeeded;
+extern std::map<int, std::string> SemanticFunctionArgs;
 
 /*
     // TypeName : DefinedScope
@@ -52,6 +57,10 @@ std::map<int, std::vector<int>> CompatibleCombinations = {
     {12, {12, 8, 9}},
     {13, {13}},
     // TODO: Add Custom Compatible Combinations Using Operators
+};
+
+std::map<std::string, std::string> FunctionMappings = {
+
 };
 
 AssemblyGenerator::AssemblyGenerator(){
@@ -260,6 +269,39 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     auto Func = scopeTree->FindFunction(FuncRef->Identifier, FuncRef);
 
                     if(!Func || Func->Type() != SemanticTypeFunction){
+                        // Could be because it is is builtin and not a defined function
+                        if(FunctionMappings.find(FuncRef->Identifier) != FunctionMappings.end()){
+                            // We know its a builtin function
+                            // Load paramenters
+                            bool Skipped = false;
+                            for(auto& Params : ((Operation*)Block)->Parameters){
+                                if(!Skipped){
+                                    Skipped = true;
+                                    continue;
+                                }
+                                if(Params->Type() == SemanticTypeOperation){
+                                    assembly += ConvertGeneric(Params, IndentCount);
+                                }
+                            }
+
+                            // Create list of register excludes
+                            std::vector<std::string> Excludes = {};
+                            for(int i = 0; i < SemanticFunctionMap[FuncRef->Identifier].Parameters.size(); i++){
+                                Excludes.push_back(SemanticFunctionArgs[i]);
+                            }
+                            assembly += registerTable->PushAll(stackTrace, Excludes, IndentCount);
+
+                            auto reg = registerTable->GetVariable(stackTrace, FuncRef, assembly, IndentCount);
+
+                            // Call Function
+                            assembly += std::string(IndentCount*4, ' ') + "call " + FunctionMappings[FuncRef->Identifier] + "\n";
+                            registerTable->ReleaseReg(&registerTable->rax);
+                            assembly += std::string(IndentCount*4, ' ') + "mov " + reg->get() + ", eax\n";
+
+                            Arguments.push_back(FuncRef);
+                            return assembly;
+                        }
+
                         std::cerr << "Function Not Found: " << FuncRef->Identifier << std::endl;
                         return assembly;
                     }
@@ -565,6 +607,7 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                     }
 
                     if(!Calculated){
+                        // if
                         std::cerr << "Incompatible Types: " << Arg1->TypeID << " " << Arg2->TypeID << std::endl;
                         return assembly;
                     }
@@ -629,91 +672,54 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 }
 
 std::string AssemblyGenerator::Generate(const Parsing::SemanticVariables::SemanticVariable* RootScope){
-    // Basic entry assembly that should be consistant
-    std::string codeAssembly = "section .text\n";
+    std::string ResultAssembly = ";; This was automatically generated using the Uni-C Compiler\nbits 64\ndefault rel\n";
+    std::string ExternSection = "\nextern ExitProcess\n";
+    std::string DataSection = "\nsection .data\nGenericConstants:\n    STD_INPUT_HANDLE equ -10\n    STD_OUTPUT_HANDLE equ -11\n    STD_ERROR_HANDLE equ -12\n";
+    std::string BSSSection = "\nsection .bss\n";
+    std::string CodeSection = "\nsection .text\n";
 
-    if(CompilerInformation::DebugAll()){
-        codeAssembly += ";; External Symbols\n";
+    std::vector<std::string> AddedExterns = {"ExitProcess"};
+
+    // Load External Functions
+    for(auto& F : ExternFunctionsNeeded){
+        auto Func = ExternalFunctions[F];
+
+        // Sort out mapping for "undefined"
+        FunctionMappings[F] = Func.FunctionName;
+
+        // Load Externs Section
+        for(auto e : Func.Externs){
+            if(std::find(AddedExterns.begin(), AddedExterns.end(), e) == AddedExterns.end()){
+                ExternSection += "extern " + e + "\n";
+                AddedExterns.push_back(e);
+            }
+        }
+
+        // Load Data Section
+        DataSection += Func.DATA;
+
+        // Load BSS Section
+        BSSSection += Func.BSS;
+
+        // Load Code Section
+        CodeSection += Func.Function;
     }
-
-    // Locate External Symbols
-    codeAssembly += "extern ExitProcess\n";
-
-    /*
-extern ExitProcess; rcx DWORD ExitCode
-extern CreateFileA; rcx LPCSTR lpFileName, rdx DWORD dwDesiredAccess
-extern CreateFileW; rcx LPCWSTR lpFileName, rdx DWORD dwDesiredAccess
-extern ReadFile; rcx HANDLE hFile, rdx LPVOID lpBuffer
-extern WriteFile; rcx HANDLE hFile, rdx LPCVOID lpBuffer
-extern CloseHandle; rcx HANDLE hObject
-extern CreateThread; rcx LPSECURITY_ATTRIBUTES lpThreadAttributes, rdx SIZE_T dwStackSize
-extern CreateProcessA; rcx LPCSTR lpApplicationName, rdx LPSTR lpCommandLine
-extern CreateProcessW; rcx LPCWSTR lpApplicationName, rdx LPWSTR lpCommandLine
-extern Sleep; rcx DWORD dwMilliseconds
-extern GetTickCount
-extern GetLastError
-extern VirtualAlloc; rcx SIZE_T dwSize, rdx DWORD flAllocationType
-extern VirtualFree; rcx LPVOID lpAddress, rdx SIZE_T dwSize
-extern GetModuleHandleA; rcx LPCSTR lpModuleName
-extern GetModuleHandleW; rcx LPCWSTR lpModuleName
-extern GetProcAddress; rcx HMODULE hModule, rdx LPCSTR lpProcName
-extern LoadLibraryA; rcx LPCSTR lpLibFileName
-extern LoadLibraryW; rcx LPCWSTR lpLibFileName
-extern FreeLibrary; rcx HMODULE hLibModule
-extern WaitForSingleObject; rcx HANDLE hHandle, rdx DWORD dwMilliseconds
-extern GetCommandLineA
-extern GetCommandLineW
-extern GetTickCount64
-extern GetCurrentThreadId
-extern GetProcessId; rcx HANDLE Process
-extern GetModuleFileNameA; rcx HMODULE hModule, rdx LPSTR lpFilename
-extern GetModuleFileNameW; rcx HMODULE hModule, rdx LPWSTR lpFilename
-extern GetSystemTime; rcx LPSYSTEMTIME lpSystemTime
-extern SetConsoleCursorPosition; rcx HANDLE hConsoleOutput, rdx COORD dwCursorPosition
-extern GetConsoleScreenBufferInfo; rcx HANDLE hConsoleOutput, rdx PCONSOLE_SCREEN_BUFFER_INFO lpConsoleScreenBufferInfo
-extern SetConsoleTextAttribute; rcx HANDLE hConsoleOutput, rdx WORD wAttributes
-extern GetConsoleMode; rcx HANDLE hConsoleHandle, rdx LPDWORD lpMode
-extern SetConsoleMode; rcx HANDLE hConsoleHandle, rdx DWORD dwMode
-extern GetCurrentProcess
-extern SetProcessAffinityMask; rcx HANDLE hProcess, rdx DWORD_PTR dwProcessAffinityMask
-extern GetThreadPriority; rcx HANDLE hThread
-extern SetThreadPriority; rcx HANDLE hThread, rdx int nPriority
-extern GetSystemInfo; rcx LPSYSTEM_INFO lpSystemInfo
-extern QueryPerformanceCounter; rcx PLARGE_INTEGER lpPerformanceCount
-extern GetEnvironmentVariableA; rcx LPCSTR lpName, rdx LPSTR lpBuffer
-extern GetEnvironmentVariableW; rcx LPCWSTR lpName, rdx LPWSTR lpBuffer
-extern SetEnvironmentVariableA; rcx LPCSTR lpName, rdx LPCSTR lpValue
-extern SetEnvironmentVariableW; rcx LPCWSTR lpName, rdx LPCWSTR lpValue
-extern GetFileSize; rcx HANDLE hFile, rdx LPDWORD lpFileSizeHigh
-extern SetFilePointer; rcx HANDLE hFile, rdx LONG lDistanceToMove
-extern GetTempPathA; rcx DWORD nBufferLength, rdx LPSTR lpBuffer
-extern GetTempPathW; rcx DWORD nBufferLength, rdx LPWSTR lpBuffer
-extern GetTempFileNameA; rcx LPCSTR lpPathName, rdx LPCSTR lpPrefixString
-extern GetTempFileNameW; rcx LPCWSTR lpPathName, rdx LPCWSTR lpPrefixString
-extern DeleteFileA; rcx LPCSTR lpFileName
-extern DeleteFileW; rcx LPCWSTR lpFileName
-extern CopyFileA; rcx LPCSTR lpExistingFileName, rdx LPCSTR lpNewFileName
-extern CopyFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName
-extern MoveFileA; rcx LPCSTR lpExistingFileName, rdx LPCSTR lpNewFileName
-extern MoveFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName
-    */
-    
-    if(CompilerInformation::DebugAll()){
-        codeAssembly += ";; Standard Start Function (Windows only)\n";
-    }
-    codeAssembly += "\nglobal _start\n_start:\n    call main\n    mov rcx, rax\n    call ExitProcess\n\n\nFunctionSpaceStart:\n";
-    // codeAssembly += "global _start\n_start:\n    call main\n    mov rdi, rax\n    mov rax, 60\n    syscall\n\nFunctionSpaceStart:\n";
-    // std::string codeAssembly = "section .text\nglobal _start\n_start:\n    call main\n    mov ebx, eax\n    mov eax, 1\n    int 0x80\n\nFunctionSpaceStart:\n";
-    std::string dataAssembly = "section .data\nDataBlockStart:\n";
 
     // Generate Scope Tree
     scopeTree->Generate((SemanticVariable*)RootScope);
 
     // Load Data
     if(CompilerInformation::DebugAll()){
-        dataAssembly += ";; Defined Symbols\n";
+        DataSection += ";; Defined Symbols\n";
     }
-    dataAssembly += RecurseTreeForData((SemanticVariable*)RootScope);
+    DataSection += RecurseTreeForData((SemanticVariable*)RootScope);
+    
+    if(CompilerInformation::DebugAll()){
+        CodeSection += ";; Standard Start Function (Windows only)\n";
+    }
+    CodeSection += "\nglobal _start\n_start:\n    call main\n    mov rcx, rax\n    call ExitProcess\n\n\nFunctionSpaceStart:\n";
+    // codeAssembly += "global _start\n_start:\n    call main\n    mov rdi, rax\n    mov rax, 60\n    syscall\n\nFunctionSpaceStart:\n";
+    // std::string codeAssembly = "section .text\nglobal _start\n_start:\n    call main\n    mov ebx, eax\n    mov eax, 1\n    int 0x80\n\nFunctionSpaceStart:\n";
 
     // Load Code
     for(auto& MainScopes : ((Scope*)RootScope)->Block){
@@ -727,18 +733,18 @@ extern MoveFileW; rcx LPCWSTR lpExistingFileName, rdx LPCWSTR lpNewFileName
                         Identifier += Par->Identifier + ", ";
                     }
                     Identifier += ")";
-                    codeAssembly += ";; Function: " + Identifier + " Start\n";
+                    CodeSection += ";; Function: " + Identifier + " Start\n";
                 }
 
                 // Create Stack store
                 registerTable->NewSave(stackTrace);
 
-                codeAssembly += ConvertFunction((Function*)ScopeContent, 0);
+                CodeSection += ConvertFunction((Function*)ScopeContent, 0);
             }
         }
     }
 
-    return ";; This was automatically generated using the Uni-C Compiler\nbits 64\n\ndefault rel\n\n" + dataAssembly + "DataBlockEnd:\n\n" + codeAssembly + "FunctionSpaceEnd:\n";
+    return ResultAssembly + ExternSection + DataSection + BSSSection + CodeSection;
 }
 
 std::string AssemblyGenerator::RecurseTreeForData(SemanticVariable* Block){
@@ -897,7 +903,66 @@ std::string AssemblyGenerator::StoreLiteral(SemLiteral* Lit){
 
     // A literal Only Needs to be stored if it is a string
     if(Lit->TypeID == SemanticTypeMap["string"].TypeID){
-        Data += GetSymbol(Lit) + " db \"" + Lit->Value + "\", 0\n";
+        // Store Size
+        Data += GetSymbol(Lit) + " dq " + std::to_string(Lit->Value.size()) + "\n";
+
+        if(Lit->Value.size() > 0){
+            // Store Location
+            Data += "    dq " + GetSymbol(Lit) + " + 16\n";
+
+            // Store Data
+            // Correct newlines and other characters in string buildup
+            std::string Result = "";
+            bool Escape = false;
+            for(auto c : Lit->Value){
+                if(c == '\\'){
+                    Escape = true;
+                    continue;
+                }
+                if(Escape){
+                    if(c == 'n'){
+                        Result += "\", 0x0a, \""; // Newline
+                    }
+                    else if(c == 't'){
+                        Result += "\", 0x09, \""; // Tab
+                    }
+                    else if(c == 'r'){
+                        Result += "\", 0x0d, \""; // Carriage Return
+                    }
+                    else if(c == '0'){
+                        Result += "\", 0x00, \""; // Null
+                    }
+                    else{
+                        Result += '\\';
+                        Result += c;
+                    }
+                    Escape = false;
+                    continue;
+                }
+                
+                if(c == '\n'){
+                    Result += "\", 0x0a, \""; // Newline
+                }
+                else if(c == '\t'){
+                    Result += "\", 0x09, \""; // Tab
+                }
+                else if(c == '\r'){
+                    Result += "\", 0x0d, \""; // Carriage Return
+                }
+                else if(c == '\0'){
+                    Result += "\", 0x00, \""; // Null
+                }
+                else{
+                    Result += c;
+                }
+            }
+
+            Data += "    db " + Result + ", 0\n";
+        }
+        else{
+            // Store Location
+            Data += "    dq 0\n";
+        }
     }
 
     return Data;

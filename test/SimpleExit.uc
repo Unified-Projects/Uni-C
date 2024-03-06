@@ -9,5 +9,6 @@ int Hello = 5;
 
 int main(){
     Func2(Hello);
+    PrintString("Hello World\n");
     return GlobalTest;
 }

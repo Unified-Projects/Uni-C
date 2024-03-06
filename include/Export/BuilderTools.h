@@ -138,6 +138,8 @@ namespace Exporting
             void ReleaseReg(RegisterValue* reg);
             RegisterValue* GetVariable(StackTrace* stack, Parsing::SemanticVariables::SemanticVariable* Var, std::string& ReturnString, int IndentIndex);
 
+            std::string PushAll(StackTrace* stack, std::vector<std::string> Exclude, int IndentIndex);
+
             void Clear();
         };
     } // namespace SemanticHelpers

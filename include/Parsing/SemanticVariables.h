@@ -19,6 +19,8 @@ namespace Parsing
         std::vector<SemanticTypeAttribute> Parameters = {}; // Type, Name
         int Scope = -1;
 
+        bool Builtin = false;
+
         class LexicalAnalyser* Lexer = nullptr;
         int TokenIndexOfBlockStart = -1;
         int TokenIndexOfBlockEnd = -1;
@@ -195,6 +197,7 @@ namespace Parsing
         struct RegisterRef : SemanticVariable{
             std::string Register = "";
             int Size = 4;
+            int typeID = -1;
             // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeRegisterRef;}
         };

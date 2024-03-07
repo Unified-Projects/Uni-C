@@ -318,6 +318,13 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                         }
                     }
 
+                    // Create list of register excludes
+                    std::vector<std::string> Excludes = {};
+                    for(int i = 0; i < SemanticFunctionMap[FuncRef->Identifier].Parameters.size(); i++){
+                        Excludes.push_back(SemanticFunctionArgs[i]);
+                    }
+                    assembly += registerTable->PushAll(stackTrace, Excludes, IndentCount);
+
                     auto reg = registerTable->GetVariable(stackTrace, FuncRef, assembly, IndentCount);
 
                     // Call Function

@@ -8,7 +8,8 @@ int Func2(int i){
 int Hello = 5;
 
 int main(){
-    Func2(Hello);
-    PrintString("Hello World\n");
+    if(1 == 1){
+        PrintString("1 == 1\n");
+    }
     return GlobalTest;
 }

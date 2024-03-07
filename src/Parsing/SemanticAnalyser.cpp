@@ -667,6 +667,8 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 // Interpret block data
                 Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
 
+                i++; // Remove line end of last line
+
                 // Non-Ended
                 if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
                     std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;

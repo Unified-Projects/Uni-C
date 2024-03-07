@@ -555,11 +555,12 @@ std::string RegisterTable::MovReg(StackTrace* stack, std::string r1, std::string
 }
 
 std::string RegisterTable::PullFromStack(StackTrace* stack, std::string registerName, int at){
-    auto reg = stack->Peek(at);
+    RegisterValue reg;
     if(!at){
-        stack->Pop();
+        reg = stack->Pop();
     }
     else{
+        reg = stack->Peek(at);
         stack->Peek(at).Var = nullptr;
     }
     if(reg.TypeID == -1){
@@ -709,6 +710,32 @@ void RegisterTable::NewSave(StackTrace* stack){
 std::string RegisterTable::CorrectStack(StackTrace* stack, int IndentIndex){
     if(SavePoint.size() == 0){
         return "; No save point\n";
+    }
+
+    std::vector<std::string> Regs = {"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"};
+    std::map<std::string, RegisterValue*> RegsPhys = {
+        {"rax", &rax},
+        {"rbx", &rbx},
+        {"rcx", &rcx},
+        {"rdx", &rdx},
+        {"rsi", &rsi},
+        {"rdi", &rdi},
+        {"rbp", &rbp},
+        {"rsp", &rsp},
+        {"r8", &r8},
+        {"r9", &r9},
+        {"r10", &r10},
+        {"r11", &r11},
+        {"r12", &r12},
+        {"r13", &r13},
+        {"r14", &r14},
+        {"r15", &r15}
+    };
+
+    for(auto r : Regs){
+        if(RegsPhys[r]->Var != nullptr){
+            ReleaseReg(RegsPhys[r]);
+        }
     }
 
     std::string Extra = "";

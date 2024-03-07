@@ -895,10 +895,12 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
             // Is it in the stack
             for(auto i = 0; i < stack->Size(); i++){
                 if(stack->Peek(i).Var == Var){
-                    ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+                    // ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+                    // ReturnString += std::string(IndentIndex*4, ' ') + "pop " + Reg->Register + "\n";
+                    // ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+
                     stack->Peek(i).Var = nullptr;
-                    ReturnString += std::string(IndentIndex*4, ' ') + "pop " + Reg->Register + "\n";
-                    ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+                    ReturnString += std::string(IndentIndex*4, ' ') + "mov " + Reg->Register + ", [rsp + " + std::to_string((stack->Size()-i + 1) * 8) + "]\n";
 
                     Reg->Var = Var;
                     Reg->Size = Ref->Size;
@@ -1006,10 +1008,12 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
         // Is it in the stack
         for(auto i = 0; i < stack->Size(); i++){
             if(stack->Peek(i).Var == Var){
-                ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+                // ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
                 stack->Peek(i).Var = nullptr;
-                ReturnString += std::string(IndentIndex*4, ' ') + "pop " + FreeReg->Register + "\n";
-                ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+                // ReturnString += std::string(IndentIndex*4, ' ') + "pop " + FreeReg->Register + "\n";
+                // ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+
+                ReturnString += std::string(IndentIndex*4, ' ') + "mov " + FreeReg->Register + ", [rsp + " + std::to_string((stack->Size()-i + 1) * 8) + "]\n";
 
                 FreeReg->Var = Var;
                 FreeReg->TypeID = 0;
@@ -1033,10 +1037,14 @@ RegisterValue* RegisterTable::GetVariable(StackTrace* stack, Parsing::SemanticVa
     // Is it in the stack
     for(auto i = 0; i < stack->Size(); i++){
         if(stack->Peek(i).Var == Var){
-            ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
-            ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register, i);
-            ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+            // ReturnString += std::string(IndentIndex*4, ' ') + "add rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+            // ReturnString += std::string(IndentIndex*4, ' ') + this->PullFromStack(stack, FreeReg->Register, i);
+            // ReturnString += std::string(IndentIndex*4, ' ') + "sub rsp, " + std::to_string((stack->Size()-i + 1) * 8) + "\n";
+
             auto Reg = stack->Peek(i);
+            stack->Peek(i).Var = nullptr;
+            ReturnString += std::string(IndentIndex*4, ' ') + "mov " + FreeReg->Register + ", [rsp + " + std::to_string((stack->Size()-i + 1) * 8) + "]\n";
+
             FreeReg->Update(&Reg);
             Allocations.push_back(FreeReg);
             return FreeReg;

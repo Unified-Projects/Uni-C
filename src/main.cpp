@@ -183,9 +183,16 @@ int main(int argc, char* argv[]){
         std::cout << "------ End Semantic Analysis ------" << std::endl;
     }
 
+    if(CompilerInformation::DebugAll()){
+        std::cout << "Begining Assembly Generation..." << std::endl;
+    }
+
     // Start Generation
     Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
     std::string assembly = generator->Generate(semanticAnalyser->getRootScope());
+
+    if(CompilerInformation::DebugAll())
+        std::cout << "Generated Assembly -> Exporting to " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
 
     // Write to file
     {

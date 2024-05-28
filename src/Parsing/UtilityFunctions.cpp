@@ -1,5 +1,7 @@
 #include <Parsing/UtilityFunctions.h>
 
+#include <algorithm>
+
 using namespace Parsing;
 
 std::string Parsing::EatWhitespace(const std::string& str, int* newLines){

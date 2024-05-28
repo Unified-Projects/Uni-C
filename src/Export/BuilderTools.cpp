@@ -1,6 +1,7 @@
 #include <Export/BuilderTools.h>
 
 #include <iostream>
+#include <algorithm>
 
 using namespace Exporting;
 using namespace Exporting::Helpers;
@@ -9,6 +10,29 @@ using namespace Parsing;
 using namespace Parsing::SemanticVariables;
 
 extern std::map<std::string, SemanticTypeDefinition> SemanticTypeMap;
+
+extern std::vector<Parsing::LexicalAnalyser*> analysers;
+
+int Exporting::GetLine(int token){
+    if (token < 0){
+        return -1;
+    }
+
+    for (auto x : analysers){
+        if(token >= x->Tokens().size()) return -1;
+        return x->getToken(token).fileLine;
+    }
+}
+std::string Exporting::GetLineValue(int token){
+    if (token < 0){
+        return "No Token";
+    }
+
+    for (auto x : analysers){
+        if(token >= x->Tokens().size()) return "Token Out of Range";
+        return x->getToken(token).tokenFileLine;
+    }
+}
 
 StackTrace::StackTrace(){
     stackPointer = 0;

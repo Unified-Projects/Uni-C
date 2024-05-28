@@ -77,15 +77,27 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
     std::string Stream = Data;
     int Line = 1;
 
+    std::string CurrentLine = Stream.substr(0, Stream.find_first_of('\n'));
+
     while (Data.size() > 0)
     {
+        int LineSave = Line;
         Stream = EatWhitespace(Stream, &Line);
 
         if(Stream.size() == 0){
             break;
         }
 
+        if(Line != LineSave){
+            CurrentLine = Stream.substr(0, Stream.find_first_of('\n'));
+        }
+
+        LineSave = Line;
         Stream = EatWhitespace(Stream, &Line);
+
+        if(Line != LineSave){
+            CurrentLine = Stream.substr(0, Stream.find_first_of('\n'));
+        }
  
         if(Stream.size() == 0){
             break;
@@ -95,18 +107,18 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         std::string Word = GetWord(Stream);
         std::string WordI = GetWord(Stream, true);
         if(WordI.size() > 0 && WordI.find_first_not_of("0123456789.-") == std::string::npos && ('-' == WordI.front() || WordI.find('-') == std::string::npos) && std::count(WordI.begin(), WordI.end(), '.') <= 1 && std::count(WordI.begin(), WordI.end(), '-') <= 1 && (std::count(WordI.begin(), WordI.end(), '.') + std::count(WordI.begin(), WordI.end(), '-') < WordI.size())){
-            tokens.push_back(Token{WordI, TokenTypes::Literal, Line});
+            tokens.push_back(Token{WordI, TokenTypes::Literal, Line, CurrentLine});
             Stream = EatWord(Stream, true);
         }
         else if(Word.size() > 0){
             if(std::find(ValidStatements.begin(), ValidStatements.end(), Word) != ValidStatements.end()){
-                tokens.push_back(Token{Word, TokenTypes::Statement, Line});
+                tokens.push_back(Token{Word, TokenTypes::Statement, Line, CurrentLine});
             }
             else if(std::find(StandardTypeDefs.begin(), StandardTypeDefs.end(), Word) != StandardTypeDefs.end()){
-                tokens.push_back(Token{Word, TokenTypes::TypeDef, Line});
+                tokens.push_back(Token{Word, TokenTypes::TypeDef, Line, CurrentLine});
             }
             else{
-                tokens.push_back(Token{Word, TokenTypes::Identifier, Line}); // Ascii literals are handled separately
+                tokens.push_back(Token{Word, TokenTypes::Identifier, Line, CurrentLine}); // Ascii literals are handled separately
             }
             Stream = EatWord(Stream);
             continue;
@@ -118,51 +130,51 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         switch (c)
         {
         case '(':
-            tokens.push_back(Token{"(", TokenTypes::ArgumentStart, Line});
+            tokens.push_back(Token{"(", TokenTypes::ArgumentStart, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case ')':
-            tokens.push_back(Token{")", TokenTypes::ArgumentEnd, Line});
+            tokens.push_back(Token{")", TokenTypes::ArgumentEnd, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '{':
-            tokens.push_back(Token{"{", TokenTypes::BlockStart, Line});
+            tokens.push_back(Token{"{", TokenTypes::BlockStart, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '}':
-            tokens.push_back(Token{"}", TokenTypes::BlockEnd, Line});
+            tokens.push_back(Token{"}", TokenTypes::BlockEnd, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '[':
-            tokens.push_back(Token{"[", TokenTypes::IndexStart, Line});
+            tokens.push_back(Token{"[", TokenTypes::IndexStart, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case ']':
-            tokens.push_back(Token{"]", TokenTypes::IndexEnd, Line});
+            tokens.push_back(Token{"]", TokenTypes::IndexEnd, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case ';':
-            tokens.push_back(Token{";", TokenTypes::LineEnd, Line});
+            tokens.push_back(Token{";", TokenTypes::LineEnd, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case ',':
-            tokens.push_back(Token{",", TokenTypes::ArgumentSeparator, Line});
+            tokens.push_back(Token{",", TokenTypes::ArgumentSeparator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '.':
-            tokens.push_back(Token{".", TokenTypes::Operator, Line});
+            tokens.push_back(Token{".", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '+':
-            tokens.push_back(Token{"+", TokenTypes::Operator, Line});
+            tokens.push_back(Token{"+", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '-':
-            tokens.push_back(Token{"-", TokenTypes::Operator, Line});
+            tokens.push_back(Token{"-", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '*':
-            tokens.push_back(Token{"*", TokenTypes::Operator, Line});
+            tokens.push_back(Token{"*", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '/': // Edge cases of "//" and "/*"
@@ -181,12 +193,12 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
                 }
                 else
                 {
-                    tokens.push_back(Token{"/", TokenTypes::Operator, Line});
+                    tokens.push_back(Token{"/", TokenTypes::Operator, Line, CurrentLine});
                 }
             }
             break;
         case '%':
-            tokens.push_back(Token{"%", TokenTypes::Operator, Line});
+            tokens.push_back(Token{"%", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '=':
@@ -195,11 +207,11 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
                 Stream = EatChar(Stream);
                 if (GetChar(Stream) == '=')
                 {
-                    tokens.push_back(Token{"==", TokenTypes::Operator, Line});
+                    tokens.push_back(Token{"==", TokenTypes::Operator, Line, CurrentLine});
                     Stream = EatChar(Stream);
                     break;
                 }
-                tokens.push_back(Token{"=", TokenTypes::Operator, Line});
+                tokens.push_back(Token{"=", TokenTypes::Operator, Line, CurrentLine});
                 Stream = EatChar(Stream);
             }
             break;
@@ -208,7 +220,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         case '>':
             break;
         case '!':
-            tokens.push_back(Token{"!", TokenTypes::Operator, Line});
+            tokens.push_back(Token{"!", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '&':
@@ -227,7 +239,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
             {
                 Stream = EatChar(Stream);
                 std::string str = "\"" + GetUntil(Stream, '"') + "\"";
-                tokens.push_back(Token{str, TokenTypes::Literal, Line});
+                tokens.push_back(Token{str, TokenTypes::Literal, Line, CurrentLine});
                 Stream = EatUntil(Stream, '"', &Line);
             }
             break;

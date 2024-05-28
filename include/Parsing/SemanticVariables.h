@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <map>
@@ -68,6 +69,7 @@ namespace Parsing
             int ScopePosition = -1;
             int NextScopePosition = 0;
             SemanticVariable* Parent = nullptr;
+            int TokenIndex = -1;
             // SemanticTypes Type = SemanticTypes::SemanticTypeNull;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeNull;}
         };

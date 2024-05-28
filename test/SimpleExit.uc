@@ -9,7 +9,11 @@ int Hello = 5;
 
 int main(){
     if(1 == 1){
-        PrintString("1 == 1\n");
+        printf("1 == 1\n");
     }
-    return GlobalTest;
+
+    int j = 1;
+    int x = 1;
+
+    return j - x;
 }

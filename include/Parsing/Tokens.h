@@ -29,6 +29,7 @@ namespace Parsing
         std::string tokenValue = "";
         TokenTypes tokenType = Literal;
         int fileLine = 0;
+        std::string tokenFileLine = "";
     };
     
 } // namespace Parsing

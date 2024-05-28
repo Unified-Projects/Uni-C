@@ -1,6 +1,8 @@
 #include <Export/AssemblyGenerator.h>
 #include <CompilerInformation.h>
 
+#include <algorithm>
+
 #include <Export/InternalFunctions.h>
 
 using namespace Exporting;
@@ -94,8 +96,23 @@ std::string AssemblyGenerator::ConvertFunction(Function* Function, int IndentCou
     return functionAssembly;
 }
 
+int PreviousLine = -1;
+
 std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int IndentCount){
     std::string assembly = "";
+
+    // Debug line export
+    if(CompilerInformation::DebugAll()){
+        // Find line number
+        int l = GetLine(Block->TokenIndex);
+        if(l > PreviousLine){
+            PreviousLine = l;
+
+            // Get line value
+            assembly += "; Line: " + std::to_string(l) + " " + GetLineValue(Block->TokenIndex) + "\n";
+        }
+    }
+
     switch (Block->Type())
     {
     case SemanticTypeFunction:

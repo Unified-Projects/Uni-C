@@ -13,6 +13,8 @@
 extern std::map<std::string, Parsing::SemanticFunctionDeclaration> SemanticFunctionMap;
 extern std::map<std::string, Parsing::SemanticTypeDefinition> SemanticTypeMap;
 
+std::vector<Parsing::LexicalAnalyser*> analysers;
+
 int main(int argc, char* argv[]){
     // Loac Configuration
     InputStream::Configuration(argc, argv);
@@ -57,7 +59,6 @@ int main(int argc, char* argv[]){
     }
 
     // Apply Lexical Analysis On Input Files
-    std::vector<Parsing::LexicalAnalyser*> analysers;
     for(auto& file : InputStream::__COMPILATION_CONFIGURATION->InputFiles()){
         InputStream::FileHandler input_file = InputStream::FileHandler(file);
         Parsing::LexicalAnalyser* analyser = new Parsing::LexicalAnalyser(std::string(input_file));

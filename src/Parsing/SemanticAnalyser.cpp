@@ -4,6 +4,7 @@ using namespace Parsing;
 using namespace Parsing::SemanticVariables;
 
 #include <stack> // RPN
+#include <algorithm>
 
 #include <iostream> // Used for error logging
 
@@ -62,7 +63,8 @@ int SemanticNextTypeID = 13;
 
 std::map<std::string, SemanticFunctionDeclaration> SemanticFunctionMap = {
     // FunctionName : DefinedScope
-    {"PrintString", {"PrintString", "void", {{"string", "Message", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
+    {"printf", {"PrintString", "void", {{"string", "Message", ""}}, -1, true, nullptr, -1, -1, -1, 1}},
+    {"AllocateMemory", {"AllocateMemory", "ulong", {{"ulong", "Size", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
 };
 
 std::map<int, SemanticVariable*> SemanticScopeMap = {
@@ -85,6 +87,7 @@ std::map<int, std::string> SemanticFunctionArgs{
     {3, "rcx"},
     {4, "r8"},
     {5, "r9"},
+    // TODO Continue into stack....
 };
 
 void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart, Function* func){
@@ -100,6 +103,7 @@ void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* P
         ArgumentOpeation->LocalScope = Parent->LocalScope;
         ArgumentOpeation->ScopePosition = Parent->NextScopePosition++;
         ArgumentOpeation->Parent = Parent;
+        ArgumentOpeation->TokenIndex = i;
 
         if(Func.Parameters.size() < ArgIndex+1){
             std::cerr << "Error: Too Many Arguments at line " << lexer->getToken(i).fileLine << std::endl;
@@ -122,6 +126,7 @@ void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* P
         id->Parent = ArgumentOpeation;
         id->Size = SemanticTypeMap[Func.Parameters[ArgIndex].Type].Size;
         id->typeID = SemanticTypeMap[Func.Parameters[ArgIndex].Type].TypeID;
+        id->TokenIndex = i;
 
         ArgumentOpeation->Parameters.push_back(id);
 
@@ -139,6 +144,7 @@ void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* P
         op->LocalScope = ArgumentOpeation->LocalScope;
         op->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
         op->Parent = ArgumentOpeation;
+        id->TokenIndex = i;
 
         ArgumentOpeation->Parameters.push_back(op);
 
@@ -212,6 +218,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                 lit->LocalScope = OpParent->LocalScope;
                 lit->ScopePosition = OpParent->Parent->NextScopePosition++;
                 lit->Parent = OpParent;
+                lit->TokenIndex = i;
             
                 OpParent->Parameters.push_back(lit);
 
@@ -252,6 +259,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                     id->ScopePosition = OpParent->Parent->NextScopePosition++;
                     id->Parent = OpParent;
                     id->typeID = func->Parameters[ArgNumber]->TypeID;
+                    id->TokenIndex = i;
 
                     for(auto x : SemanticTypeMap){
                         if(x.second.TypeID == func->Parameters[ArgNumber]->TypeID){
@@ -269,6 +277,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                     id->LocalScope = OpParent->LocalScope;
                     id->ScopePosition = OpParent->Parent->NextScopePosition++;
                     id->Parent = OpParent;
+                    id->TokenIndex = i;
 
                     OpParent->Parameters.push_back(id);
                 }
@@ -291,6 +300,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                 op->LocalScope = OpParent->LocalScope;
                 op->ScopePosition = OpParent->Parent->NextScopePosition++;
                 op->Parent = OpParent;
+                op->TokenIndex = i;
 
                 i++;
 
@@ -309,6 +319,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                 op->LocalScope = OpParent->LocalScope;
                 op->ScopePosition = OpParent->NextScopePosition++;
                 op->Parent = OpParent;
+                op->TokenIndex = i;
 
                 OperatorStack.push(op);
                 i++;
@@ -357,6 +368,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
             var->LocalScope = Parent->LocalScope;
             var->ScopePosition = Parent->NextScopePosition++;
             var->Parent = Parent;
+            var->TokenIndex = i;
 
             // Get Identifier
             if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
@@ -420,6 +432,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     op->LocalScope = Parent->LocalScope;
                     op->ScopePosition = Parent->NextScopePosition++;
                     op->Parent = Parent;
+                    op->TokenIndex = i+1;
 
                     // Get Operand
                     if(EvaluateOperands(op, Lexer, &i, TokenTypes::LineEnd, 0, func)){
@@ -461,6 +474,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->LocalScope = Parent->LocalScope;
                 op->ScopePosition = Parent->NextScopePosition++;
                 op->Parent = Parent;
+                op->TokenIndex = i;
 
                 // Add first paramenter of the identifier
                 FunctionRef* id = new FunctionRef();
@@ -470,6 +484,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 id->ScopePosition = op->Parent->NextScopePosition++;
                 id->Parent = op;
                 id->Size = SemanticTypeMap[SemanticFunctionMap[VariableName].ReturnType].Size;
+                id->TokenIndex = i+1;
 
                 op->Parameters.push_back(id);
 
@@ -508,6 +523,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     ret->LocalScope = Parent->LocalScope;
                     ret->ScopePosition = Parent->NextScopePosition++;
                     ret->Parent = Parent;
+                    ret->TokenIndex = i;
 
                     i++;
 
@@ -518,6 +534,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     op->LocalScope = ret->LocalScope;
                     op->ScopePosition = ret->NextScopePosition++;
                     op->Parent = ret;
+                    op->TokenIndex = i;
 
                     ret->Parameters.push_back(op);
 
@@ -528,6 +545,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     id->ScopePosition = op->Parent->NextScopePosition++;
                     id->Parent = op;
                     id->typeID = 0;
+                    id->TokenIndex = i+1;
 
                     op->Parameters.push_back(id);
 
@@ -539,6 +557,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     assinger->LocalScope = ret->LocalScope;
                     assinger->ScopePosition = ret->NextScopePosition++;
                     assinger->Parent = ret;
+                    assinger->TokenIndex = i+2;
                     
                     op->Parameters.push_back(assinger);
 
@@ -614,6 +633,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 ifStatement->LocalScope = Parent->LocalScope;
                 ifStatement->ScopePosition = Parent->NextScopePosition++;
                 ifStatement->Parent = Parent;
+                ifStatement->TokenIndex = i;
 
                 // Get Condition
                 if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
@@ -629,6 +649,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->LocalScope = ifStatement->LocalScope;
                 op->ScopePosition = ifStatement->NextScopePosition++;
                 op->Parent = ifStatement;
+                op->TokenIndex = i;
 
                 // Operation
                 EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
@@ -701,6 +722,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 ifStatement->LocalScope = Parent->LocalScope;
                 ifStatement->ScopePosition = Parent->NextScopePosition++;
                 ifStatement->Parent = Parent;
+                ifStatement->TokenIndex = i;
 
                 // Get Condition
                 if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
@@ -716,6 +738,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 op->LocalScope = ifStatement->LocalScope;
                 op->ScopePosition = ifStatement->NextScopePosition++;
                 op->Parent = ifStatement;
+                op->TokenIndex = i;
 
                 // Operation
                 EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
@@ -772,6 +795,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 ifStatement->LocalScope = Parent->LocalScope;
                 ifStatement->ScopePosition = Parent->NextScopePosition++;
                 ifStatement->Parent = Parent;
+                ifStatement->TokenIndex = i;
 
                 // Check for block start
                 if(Lexer->getToken(i+1).tokenType != TokenTypes::BlockStart){
@@ -909,6 +933,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
     rootScope->ScopePosition = 0;
     rootScope->Parent = nullptr;
     rootScope->Block = {};
+    rootScope->TokenIndex = 0;
     
     SemanticScopeMap[0] = rootScope;
 
@@ -923,6 +948,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
             LexerScope->ScopePosition = rootScope->NextScopePosition++;
             LexerScope->Parent = rootScope;
             LexerScope->Block = {};
+            LexerScope->TokenIndex = NextScope;
 
             // Add to scopeMap
             SemanticLexerScopeMap[Lexer] = LexerScope;
@@ -1249,6 +1275,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                     type->LocalScope = NextScope++;
                     type->ScopePosition = LexerScope->NextScopePosition++;
                     type->Parent = LexerScope;
+                    type->TokenIndex = p.second.TokenIndexOfBlockStart;
 
                     // Load to scope map
                     SemanticScopeMap[type->LocalScope] = type;
@@ -1267,6 +1294,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                         var->LocalScope = type->LocalScope;
                         var->ScopePosition = type->NextScopePosition++;
                         var->Parent = type;
+                        var->TokenIndex = p.second.TokenIndexOfBlockStart;
 
                         type->Attributes.push_back(var);
                     }
@@ -1344,6 +1372,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                     var->LocalScope = LexerScope->LocalScope;
                     var->ScopePosition = LexerScope->NextScopePosition++;
                     var->Parent = LexerScope;
+                    var->TokenIndex = i;
 
                     LexerScope->Block.push_back(var);
                 }
@@ -1373,6 +1402,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
             func->LocalScope = NextScope++;
             func->ScopePosition = LexerScope->NextScopePosition++;
             func->Parent = LexerScope;
+            func->TokenIndex = function.second.TokenIndexOfBlockStart;
 
             // Load to scope map
             SemanticScopeMap[func->LocalScope] = func;
@@ -1389,6 +1419,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
                 var->ScopePosition = func->NextScopePosition++;
                 var->Parent = func;
                 var->InitValue = p.Value;
+                var->TokenIndex = function.second.TokenIndexOfBlockStart;
 
                 func->Parameters.push_back(var);
             }

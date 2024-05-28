@@ -1,11 +1,15 @@
 #pragma once
 
 #include <Parsing/SemanticVariables.h>
+#include <Parsing/LexicalAnalyser.h>
 
 #include <list>
 
 namespace Exporting
 {
+    int GetLine(int token);
+    std::string GetLineValue(int line);
+
     namespace Helpers
     {
         std::string GetSymbol(Parsing::SemanticVariables::SemanticVariable* Var);

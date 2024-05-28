@@ -2,6 +2,7 @@ extern ExitProcess                          ;windows API function to exit proces
 extern WriteConsoleA                        ;windows API function to write to the console window (ANSI version)
 extern ReadConsoleA                         ;windows API function to read from the console window (ANSI version)
 extern GetStdHandle                         ;windows API to get the for the console handle for input/output
+extern VirtualAlloc                         ; rcx SIZE_T dwSize, rdx DWORD flAllocationType
 
 default rel                                 ;default to using RIP-relative addressing
 
@@ -24,6 +25,14 @@ section .bss:
     _PrintS_Print_Chars: resb 4
 
 section .text:
+global _Malloc
+_Malloc:
+    ; Allocate memory
+    mov rcx, rdx
+    mov rdx, 0x1000
+    call VirtualAlloc
+    ret
+
 global _PrintS
 _PrintS: ; Print String
     ; sub rsp, 40
@@ -49,6 +58,10 @@ _start:
     mov rdx, testString
     mov r8, testStringLen
     call _PrintS
+
+    ; Allocate memory
+    mov rdx, 0x1000
+    call _Malloc
 
     ; Exit
     call ExitProcess

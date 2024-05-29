@@ -1,5 +1,7 @@
 #include <Export/InternalFunctions.h>
 
+#ifdef WIN32
+
 std::map<std::string, CustomFunctionDeclaration> ExternalFunctions = {
     {
         "printf",
@@ -12,7 +14,7 @@ std::map<std::string, CustomFunctionDeclaration> ExternalFunctions = {
         }
     },
     {
-        "AllocateMemory",
+        "malloc",
         {
             "_Malloc",
             {"VirtualAlloc"},
@@ -22,3 +24,5 @@ std::map<std::string, CustomFunctionDeclaration> ExternalFunctions = {
         }
     }
 };
+
+#endif

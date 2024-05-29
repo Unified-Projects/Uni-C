@@ -210,7 +210,16 @@ namespace Parsing
             // SemanticTypes Type = SemanticTypes::SemanticTypeScope;
             virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeScope;}
         };
+
+        /*
+        PLAN:
+
+        WHAT IS NEEDED
+
+        Functions -> 
         
+        */
+
     } // namespace SemanticVariables
     
 } // namespace Parsing

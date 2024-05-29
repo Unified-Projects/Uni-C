@@ -188,6 +188,8 @@ int main(int argc, char* argv[]){
         std::cout << "Begining Assembly Generation..." << std::endl;
     }
 
+    return 0;
+
     // Start Generation
     Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
     std::string assembly = generator->Generate(semanticAnalyser->getRootScope());

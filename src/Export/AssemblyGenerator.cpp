@@ -402,14 +402,19 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
 
                     Exporting::Helpers::RegisterValue* Arg1 = nullptr;
                     Exporting::Helpers::RegisterValue* Arg2 = nullptr;
+                    Exporting::Helpers::RegisterValue* Arg3 = nullptr;
 
                     if(A2->Type() == SemanticTypeRegisterRef){
                         Arg2 = registerTable->GetVariable(stackTrace, A2, assembly, IndentCount);
                         Arg1 = registerTable->GetVariable(stackTrace, A1, assembly, IndentCount);
+                        Arg3 = registerTable->GetFreeReg(stackTrace, assembly, IndentCount);
+                        Arg3->Size = 4;
                     }
                     else{
                         Arg1 = registerTable->GetVariable(stackTrace, A1, assembly, IndentCount);
                         Arg2 = registerTable->GetVariable(stackTrace, A2, assembly, IndentCount);
+                        Arg3 = registerTable->GetFreeReg(stackTrace, assembly, IndentCount);
+                        Arg3->Size = 4;
                     }
 
                     // Compare Types
@@ -433,7 +438,6 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     if(CompilerInformation::DebugAll()){
                                         assembly += ";; Subtraction Operation\n";
                                     }
-
                                     assembly += std::string(IndentCount*4, ' ') + "sub " + Arg1->get() + ", " + Arg2->get() + "\n";
                                 }
                                 break;
@@ -519,11 +523,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "sete al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
 
@@ -538,11 +542,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "setne al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
 
@@ -557,11 +561,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "setl al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
 
@@ -576,11 +580,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "setg al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
 
@@ -595,11 +599,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "setle al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
 
@@ -614,11 +618,11 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                                     }
                                     assembly += std::string(IndentCount*4, ' ') + "cmp " + Arg1->get() + ", " + Arg2->get() + "\n";
                                     assembly += std::string(IndentCount*4, ' ') + "setge al\n";
-                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg1->get() + ", al\n";
+                                    assembly += std::string(IndentCount*4, ' ') + "movzx " + Arg3->get() + ", al\n";
                                     if(Arg2->Register != "rax" && Arg1->Register != "rax" && registerTable->rax.Var != nullptr){
                                         assembly += std::string(IndentCount*4, ' ') + "pop rax\n";
                                     }
-                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg1->Register);
+                                    assembly += std::string(IndentCount*4, ' ') + registerTable->PushToStack(stackTrace, Arg3->Register);
                                 }
                                 break;
                             
@@ -629,6 +633,8 @@ std::string AssemblyGenerator::ConvertGeneric(SemanticVariable* Block, int Inden
                             Calculated = true;
                         }
                     }
+
+                    registerTable->ReleaseReg(Arg3);
 
                     if(!Calculated){
                         // if
@@ -768,7 +774,10 @@ std::string AssemblyGenerator::Generate(const Parsing::SemanticVariables::Semant
         }
     }
 
+#ifdef WIN32
     return ResultAssembly + ExternSection + DataSection + BSSSection + CodeSection;
+#endif
+    return ResultAssembly + DataSection + BSSSection + CodeSection;
 }
 
 std::string AssemblyGenerator::RecurseTreeForData(SemanticVariable* Block){

@@ -64,7 +64,7 @@ int SemanticNextTypeID = 13;
 std::map<std::string, SemanticFunctionDeclaration> SemanticFunctionMap = {
     // FunctionName : DefinedScope
     {"printf", {"PrintString", "void", {{"string", "Message", ""}}, -1, true, nullptr, -1, -1, -1, 1}},
-    {"AllocateMemory", {"AllocateMemory", "ulong", {{"ulong", "Size", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
+    {"malloc", {"AllocateMemory", "ulong", {{"ulong", "Size", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
 };
 
 std::map<int, SemanticVariable*> SemanticScopeMap = {
@@ -74,6 +74,9 @@ std::map<int, SemanticVariable*> SemanticScopeMap = {
 std::vector<std::string> ExternFunctionsNeeded = {
 
 };
+
+// Current State Information
+Function* Semantic__CurrentFunction = nullptr;
 
 int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0, Function* func = nullptr);
 SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func = nullptr);
@@ -230,6 +233,7 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
                 if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
                     auto F = Evaluate(OpParent, &OpParent->Parameters, Lexer, &i, func);
                     if(F == nullptr){
+                        std::cout << "Failed To Interpret Function Operand" << std::endl;
                         return -1;
                     }
                     else{
@@ -355,6 +359,8 @@ int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStar
 SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func){
     int i = *tokenStart;
     Token token = Lexer->getToken(i);
+
+    std::cout << token.tokenFileLine << std::endl;
 
     SemanticVariable* Result = nullptr;
 
@@ -495,10 +501,10 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                 i++; // End parathensis
 
                 // Current Token is line end
-                if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
-                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
+                // if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
+                //     std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                //     return nullptr;
+                // }
 
                 Store->push_back(op);
                 Result = op;
@@ -514,7 +520,7 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
             // Statement
             if(token.tokenValue == std::string("return")){
                 // Should have a literal then a line end or a identifier then a line end
-                if (Lexer->getToken(i+1).tokenType == TokenTypes::Literal || Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
+                if (Lexer->getToken(i+1).tokenType != TokenTypes::LineEnd){
 
                     // Valid Return
                     SemStatement* ret = new SemStatement();
@@ -621,7 +627,8 @@ SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariabl
                     Result = ret;
                 }
                 else{
-                    std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                    std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << " and token " << (i + 1) << std::endl;
+                    std::cerr << "Non-Return Values Not Implemented" << std::endl;
                     return nullptr;
                 }
             }
@@ -1407,6 +1414,9 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
             // Load to scope map
             SemanticScopeMap[func->LocalScope] = func;
 
+            // Save current function for context
+            Semantic__CurrentFunction = func;
+
             // Load parameters
             for(auto& p : function.second.Parameters){
                 // Start building variable
@@ -1441,3 +1451,24 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
     // Load root scope
     this->RootScope = rootScope;
 }
+
+// SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
+// {
+//     this->AnalysisData = AnalysisData;
+//     this->RootScope = nullptr; // If remains null, error encountered
+
+//     // Create root scope
+//     Scope* rootScope = new Scope();
+//     rootScope->LocalScope = 0;
+//     rootScope->ParentScope = -1;
+//     rootScope->ScopePosition = 0;
+//     rootScope->Parent = nullptr;
+//     rootScope->Block = {};
+//     rootScope->TokenIndex = 0;
+    
+//     SemanticScopeMap[0] = rootScope; // Setup this as the root of all processing
+
+//     // 
+
+//     this->RootScope = rootScope;
+// }

@@ -7,218 +7,117 @@
 
 namespace Parsing
 {
-    struct SemanticTypeAttribute{
-        std::string Type = "";
-        std::string Name = "";
-        std::string Value = "";
-    };
-
-    struct SemanticFunctionDeclaration
-    {
-        std::string Name = "";
-        std::string ReturnType = "";
-        std::vector<SemanticTypeAttribute> Parameters = {}; // Type, Name
-        int Scope = -1;
-
-        bool Builtin = false;
-
-        class LexicalAnalyser* Lexer = nullptr;
-        int TokenIndexOfBlockStart = -1;
-        int TokenIndexOfBlockEnd = -1;
-
-        int BlockStart = -1;
-        int BlockEnd = -1;
-    };
-
-    struct SemanticTypeDefinition{
-        std::string Name = "";
-        int Scope = -1;
-        int Size = -1;
-        std::vector<SemanticTypeAttribute> Attributes = {}; // Type, Name
-
-        class LexicalAnalyser* Lexer = nullptr;
-        int TokenIndexOfBlockStart = -1;
-        int TokenIndexOfBlockEnd = -1;
-
-        int TypeID = -1;
-
-        int BlockStart = -1;
-        int BlockEnd = -1;
-    };
-
     namespace SemanticVariables
     {
-        enum SemanticTypes{
-            SemanticTypeNull,
-            SemanticTypeVariable,
-            SemanticTypeVariableRef,
-            SemanticTypeRegisterRef,
-            SemanticTypeFunction,
-            SemanticTypeFunctionRef,
-            SemanticTypeType,
-            SemanticTypeStatement,
-            SemanticTypeOperation,
-            SemanticTypeLiteral,
-            SemanticTypeScope
-        };
-
-        struct SemanticVariable
-        {
-            int ParentScope = -1;
-            int LocalScope = -1;
-            int ScopePosition = -1;
-            int NextScopePosition = 0;
-            SemanticVariable* Parent = nullptr;
-            int TokenIndex = -1;
-            // SemanticTypes Type = SemanticTypes::SemanticTypeNull;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeNull;}
-        };
-
-        struct Variable : SemanticVariable
-        {
-            std::string Identifier = "";
-            int TypeID = -1;
-            std::string InitValue = "";
-            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeVariable;}
-        };
-
-        struct VariableRef : SemanticVariable
-        {
-            std::string Identifier = "";
-            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeVariableRef;}
-        };
-
-        struct Function : SemanticVariable
-        {
-            int ReturnTypeID = -1;
-            std::string Identifier = "";
-            // SemanticTypes Type = SemanticTypes::SemanticTypeFunction;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeFunction;}
-            std::vector<Variable*> Parameters = {};
-            std::vector<SemanticVariable*> Block = {};
-        };
-
-        struct FunctionRef : SemanticVariable
-        {
-            std::string Identifier = "";
-            int Size = 0;
-            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeFunctionRef;}
-        };
-
-        struct SemTypeDef : SemanticVariable
-        {
-            std::string Identifier = "";
-            int TypeID = -1;
-            int Size = -1;
-            std::vector<Variable*> Attributes = {};
-            std::vector<Function*> Methods = {};
-            // SemanticTypes Type = SemanticTypes::SemanticTypeType;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeType;}
-        };
-
-        enum SemanticStatementTypes{
-            SemanticStatementNULL,
-            SemanticStatementIf,
-            SemanticStatementWhile,
-            SemanticStatementFor,
-            SemanticStatementReturn,
-            SemanticStatementBreak,
-            SemanticStatementContinue,
-            SemanticStatementElse,
-            SemanticStatementElseIf,
-            SemanticStatementSwitch,
-            SemanticStatementCase,
-            SemanticStatementDefault,
-            SemanticStatementNew,
-            SemanticStatementDelete
-        };
-
-        struct SemStatement : SemanticVariable
-        {
-            SemanticStatementTypes TypeID = SemanticStatementNULL;
-            std::vector<SemanticVariable*> Parameters = {};
-            std::vector<SemanticVariable*> Block = {};
-            std::vector<SemanticVariable*> Alternatives = {};
-            // SemanticTypes Type = SemanticTypes::SemanticTypeStatement;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeStatement;}
-        };
-
-        enum SemanticOperationTypes{
-            SemanticOperationEqual,
-            SemanticOperationNotEqual,
-            SemanticOperationGreater,
-            SemanticOperationLess,
-            SemanticOperationGreaterEqual,
-            SemanticOperationLessEqual,
-            SemanticOperationAnd,
-            SemanticOperationOr,
-            SemanticOperationNot,
-            SemanticOperationBitwiseAnd,
-            SemanticOperationBitwiseOr,
-            SemanticOperationBitwiseNot,
-            SemanticOperationBitwiseXor,
-            SemanticOperationBitwiseLeftShift,
-            SemanticOperationBitwiseRightShift,
-            SemanticOperationTernary,
-            SemanticOperationArrayAccess,
-            SemanticOperationMemberAccess,
-            SemanticOperationPointerAccess,
-            SemanticOperationScoper,
-            SemanticOperationAssignment,
-            SemanticOperationAddition,
-            SemanticOperationSubtraction,
-            SemanticOperationMultiplication,
-            SemanticOperationDivision,
-            SemanticOperationModulus,
-            SemanticOperationIncrement,
-            SemanticOperationDecrement,
-            SemanticOperationFunctionCall,
-            SemanticOperationArgument
-        };
-
-        struct Operation : SemanticVariable
-        {
-            int TypeID = -1;
-            std::vector<SemanticVariable*> Parameters = {};
-            int EndSize = 4;
-            // SemanticTypes Type = SemanticTypes::SemanticTypeOperation;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeOperation;}
-        };
-
-        struct SemLiteral : SemanticVariable
-        {
-            int TypeID = -1;
-            std::string Value = "";
-            // SemanticTypes Type = SemanticTypes::SemanticTypeLiteral;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeLiteral;}
-        };
-
-        struct RegisterRef : SemanticVariable{
-            std::string Register = "";
-            int Size = 4;
-            int typeID = -1;
-            // SemanticTypes Type = SemanticTypes::SemanticTypeVariable;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeRegisterRef;}
-        };
-
-        struct Scope : SemanticVariable
-        {
-            std::vector<SemanticVariable*> Block = {};
-            // SemanticTypes Type = SemanticTypes::SemanticTypeScope;
-            virtual SemanticTypes Type() {return SemanticTypes::SemanticTypeScope;}
-        };
-
         /*
         PLAN:
 
         WHAT IS NEEDED
 
-        Functions -> 
+        SemanticSpace:
+            - Include Files (Analyse First)
+            - Associated File
+            - All defined TypeDefs
+            - All defined Classes
+            - All defined functions
+
+        Declarations
+        TypeDef:
+            - Identifier
+            - Size
+            - Compound
+            - Reference
         
+        Obj:
+            - Inherited TypeDef
+            - Deconstruction of Size {In TypeDef's}
+            - Associated Fucntion Names
+
+        Function:
+            - Identifier
+            - {Does Return, Type}
+            - {Parameters}
+            - SystemLevel
+            - Namespace -> (Default is __GLOB__)
+            - Symbol
+            - Static (Defines is callable without class scope)
+
+
+        SemanticGeneric:
+            - Type() Function to get type
+            - int ReferenceToken
+            - Parent
+
+        SemanticFunction:
+            - [] of SemanticVariables and their token position of definition
         */
+
+        struct SemanticTypeDefDeclaration{
+            std::string Identifier = "";
+            uint64_t DataSize = 0;
+            bool Compound = false;
+            struct {
+                bool Referenceing;
+                std::string RelayTypeDef = ""; 
+            } Refering;
+            std::string Namepsace = "__GLOB__";
+        };
+
+        struct SemanticFunctionDeclaration{
+            std::string Identifier = "";
+            struct {
+                bool WillReturn = false;
+                std::string TypeDef = "";
+            } FunctionReturn;
+            struct FunctionDefinitionParameter{
+                std::string TypeDef = "";
+                std::string Identifier = "";
+                std::string Initialiser = "";
+            };
+            std::vector<FunctionDefinitionParameter> Parameters = {};
+            bool IsBuiltin = false;
+            std::string Namespace = "";
+            std::string Symbol = "";
+            bool Static = false;
+            bool Private = false;
+            int StartToken = -1;
+            int EndToken = -1;
+        };
+
+        struct SemanticObjectDefinition{
+            std::string TypeDefinition = "";
+            struct ObjectComponent{
+                bool Private = false;
+                bool Protected = false;
+                bool Constant = false;
+                bool Static = false;
+                bool Pointer = false;
+
+                std::string TypeDef = "";
+                std::string Identifier = "";
+                std::string InitialValue = "";
+            };
+            std::vector<ObjectComponent*> TypeDef_Identifier = {};
+            std::vector<SemanticFunctionDeclaration*> AssociatedFunctions = {};
+            std::string Inhertance = "";
+            std::string Namespace = "__GLOB__";
+            int StartToken = -1;
+            int EndToken = -1;
+        };
+
+        struct SemanticisedFile{
+            // Metadata
+            std::string AssociatedFile = "";
+            LexicalAnalyser* Lexar = nullptr;
+            std::vector<std::string> Associations = {};
+
+            // Definitions
+            std::vector<SemanticTypeDefDeclaration*> TypeDefs; // (Will load inherited ones from included files)
+            std::vector<SemanticObjectDefinition*> ObjectDefs;
+            std::vector<SemanticFunctionDeclaration*> FunctionDefs;
+
+            // Interpreted Blocks
+        };
 
     } // namespace SemanticVariables
     

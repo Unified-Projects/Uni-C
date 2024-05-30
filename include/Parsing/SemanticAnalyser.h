@@ -10,11 +10,11 @@ namespace Parsing
     {
     protected:
         std::vector<LexicalAnalyser*> AnalysisData = {};
-        SemanticVariables::SemanticVariable* RootScope = nullptr;
+        std::vector<SemanticVariables::SemanticisedFile*> LoadedFiles = {};
     public:
         SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData);
         ~SemanticAnalyser();
-    public:
-        SemanticVariables::SemanticVariable* getRootScope() {return RootScope;};
+
+        std::vector<SemanticVariables::SemanticisedFile*> GetFiles() {return this->LoadedFiles;}
     };
 } // namespace Parsing

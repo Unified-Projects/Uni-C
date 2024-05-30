@@ -1,8 +1,35 @@
 #include <Parsing/UtilityFunctions.h>
-
+#include <unordered_set>
+#include <random>
 #include <algorithm>
 
 using namespace Parsing;
+
+std::string generateUUID() {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<uint32_t> dis(0, 15);
+
+    const char *v = "0123456789abcdef";
+    const size_t len = 32;
+    std::string uuid(len, ' ');
+
+    for (size_t i = 0; i < len; ++i) {
+        uuid[i] = v[dis(gen)];
+    }
+    return uuid;
+}
+
+static std::unordered_set<std::string> __GENERATED__USED__IDs = {};
+
+// Function to generate a unique UUID not present in the usedUUIDs set
+std::string GenerateID() {
+    std::string newUUID;
+    do {
+        newUUID = generateUUID();
+    } while (__GENERATED__USED__IDs.find(newUUID) != __GENERATED__USED__IDs.end());
+    return newUUID;
+}
 
 std::string Parsing::EatWhitespace(const std::string& str, int* newLines){
     if(str.size() == 0){

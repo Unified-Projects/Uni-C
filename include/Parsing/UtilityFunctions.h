@@ -14,4 +14,7 @@ namespace Parsing
     std::string GetWord(const std::string& str, bool i = false);
     char GetChar(const std::string& str);
     std::string GetUntil(const std::string& str, const char& end);
+
 } // namespace Parsing
+
+std::string GenerateID();

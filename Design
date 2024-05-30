@@ -106,3 +106,9 @@ Semantic Analysis:
    - Gets all Function Declarations
    - Second will get block data for Type Definitions
    - Third will do function block data
+
+
+
+NOTES:
+
+EACH FUNCTION WILL GET A FRESH 16-bit alligned stack to use with registers pre-loaded

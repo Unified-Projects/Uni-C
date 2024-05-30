@@ -3,8 +3,6 @@
 
 #include <algorithm>
 
-#include <iostream> // TODO Remove
-
 using namespace Parsing;
 
 // Statements
@@ -26,15 +24,11 @@ std::vector<std::string> ValidStatements = {
     "catch",
     "throw",
     "using",
-    "typedef",
     "enum",
     "struct",
-    "union",
     "class",
     "namespace",
     "template",
-    "typename",
-    "auto",
     "register",
     "static",
     "extern",
@@ -56,6 +50,10 @@ std::vector<std::string> ValidStatements = {
     "typeid"
 };
 
+std::vector<std::string> ValidMacroStatements = {
+    "include"
+};
+
 std::vector<std::string> StandardTypeDefs = {
     "int",
     "uint",
@@ -72,7 +70,9 @@ std::vector<std::string> StandardTypeDefs = {
     "string"
 };
 
-LexicalAnalyser::LexicalAnalyser(const std::string& Data){
+LexicalAnalyser::LexicalAnalyser(const std::string& Data, const std::string FilePath)
+    : AssociatedFile(FilePath)
+{
     // Iterate over data
     std::string Stream = Data;
     int Line = 1;
@@ -116,6 +116,9 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
             }
             else if(std::find(StandardTypeDefs.begin(), StandardTypeDefs.end(), Word) != StandardTypeDefs.end()){
                 tokens.push_back(Token{Word, TokenTypes::TypeDef, Line, CurrentLine});
+            }
+            else if(std::find(ValidMacroStatements.begin(), ValidMacroStatements.end(), Word) != ValidMacroStatements.end()){
+                tokens.push_back(Token(Word, TokenTypes::MacroStatement, Line, CurrentLine));
             }
             else{
                 tokens.push_back(Token{Word, TokenTypes::Identifier, Line, CurrentLine}); // Ascii literals are handled separately
@@ -246,6 +249,11 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data){
         case '\'': // Needs closing
             break;
         case '\\': // Invalid
+            break;
+        case '#':
+            // TODO #Ifdef ...
+            tokens.push_back(Token{"#", TokenTypes::Macro, Line, CurrentLine});
+            Stream = EatChar(Stream);
             break;
         default:
             break;

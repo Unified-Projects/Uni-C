@@ -1,15 +1,15 @@
-#pragma once
+// #pragma once
 
-#include <string>
-#include <map>
-#include <vector>
+// #include <string>
+// #include <map>
+// #include <vector>
 
-struct CustomFunctionDeclaration{
-    std::string FunctionName;
-    std::vector<std::string> Externs;
-    std::string BSS;
-    std::string DATA;
-    std::string Function;
-};
+// struct CustomFunctionDeclaration{
+//     std::string FunctionName;
+//     std::vector<std::string> Externs;
+//     std::string BSS;
+//     std::string DATA;
+//     std::string Function;
+// };
 
-extern std::map<std::string, CustomFunctionDeclaration> ExternalFunctions;
+// extern std::map<std::string, CustomFunctionDeclaration> ExternalFunctions;

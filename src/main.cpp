@@ -9,10 +9,6 @@
 #include <map>
 #include <functional>
 
-// Pull External Debug Inforamtion
-extern std::map<std::string, Parsing::SemanticFunctionDeclaration> SemanticFunctionMap;
-extern std::map<std::string, Parsing::SemanticTypeDefinition> SemanticTypeMap;
-
 std::vector<Parsing::LexicalAnalyser*> analysers;
 
 int main(int argc, char* argv[]){
@@ -61,7 +57,7 @@ int main(int argc, char* argv[]){
     // Apply Lexical Analysis On Input Files
     for(auto& file : InputStream::__COMPILATION_CONFIGURATION->InputFiles()){
         InputStream::FileHandler input_file = InputStream::FileHandler(file);
-        Parsing::LexicalAnalyser* analyser = new Parsing::LexicalAnalyser(std::string(input_file));
+        Parsing::LexicalAnalyser* analyser = new Parsing::LexicalAnalyser(std::string(input_file), file);
         analysers.push_back(analyser);
 
         // Debugger
@@ -79,110 +75,107 @@ int main(int argc, char* argv[]){
 
     // Semantic Analysis
     Parsing::SemanticAnalyser* semanticAnalyser = new Parsing::SemanticAnalyser(analysers);
-    if(semanticAnalyser->getRootScope() == nullptr){
-        std::cerr << "Failed to compile!" << std::endl;
-        return -1;
-    }
-    if(CompilerInformation::DebugAll()){
-        std::cout << "-------- Semantic Analysis --------" << std::endl;
-        std::cout << "Types: " << std::endl;
-        for(auto& type : SemanticTypeMap){
-            if(type.second.Scope < 0) continue;
-            std::cout << "  Name: " << type.first << " Scope: " << type.second.Scope << " Size: " << type.second.Size << std::endl;
+
+    const int IndentCount = 3;
+
+    // Log a function definition
+    std::function<void(Parsing::SemanticVariables::SemanticFunctionDeclaration*, int)> LogFunctionDefinition = [&](Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, int depth){
+        std::cout << std::string(depth * IndentCount, ' ') << Function->Identifier << ": " << ((Function->Private) ? "P" : "") << ((Function->Static) ? "S" : "") << std::endl;
+
+        // Retun
+        if(Function->FunctionReturn.WillReturn){
+            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Function Will Return: " << Function->FunctionReturn.TypeDef << std::endl;
         }
-        std::cout << "Functions: " << std::endl;
-        for(auto& func : SemanticFunctionMap){
-            if(func.second.Scope < 0) continue;
-            std::cout << "  Name: " << func.first << " Scope: " << func.second.Scope << std::endl;
+        
+        // Parameters
+        // TODO
+    };
+
+    // Loop over each loaded file
+    std::cout << "-------- Semantic Analysis --------" << std::endl;
+    for(auto Interpretation : semanticAnalyser->GetFiles()){
+        // std::cout << std::string(IndentCount, ' ') <<  << std::endl;
+
+        std::cout << "File: " << Interpretation->AssociatedFile << std::endl;
+
+        // Linked Files
+        if(Interpretation->Associations.size() > 0){    
+            std::cout << std::string(IndentCount, ' ') << "Associations: " << std::endl;
+            for(auto A : Interpretation->Associations){
+                std::cout << std::string(IndentCount * 2, ' ') << A << std::endl;
+            }
         }
 
-        std::cout << "Tree: " << std::endl;
+        // Type Definitions
+        if(Interpretation->TypeDefs.size() > 0){
+            std::cout << std::string(IndentCount, ' ') << "TypeDefs: " << std::endl;
+            for(auto A : Interpretation->TypeDefs){
+                std::cout << std::string(IndentCount * 2, ' ') << A->Identifier << ": s(" << A->DataSize << ")" << ((A->Compound) ? "c" : "") << ((A->Refering.Referenceing) ? "r(" + A->Refering.RelayTypeDef + ")" : "") << std::endl;
+            }
+        }
 
-        // Tree traverse block chain from root scope printing out types
-        std::function<void(Parsing::SemanticVariables::SemanticVariable*, int)> traverse = [&](Parsing::SemanticVariables::SemanticVariable* scope, int depth){
-            // Log all Semantice Variables for the specific type using casting then traverse children if present
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeType){
-                Parsing::SemanticVariables::SemTypeDef* type = (Parsing::SemanticVariables::SemTypeDef*)scope;
-                std::cout << std::string(depth * 2, ' ') << "TypeDef: " << type->Identifier << " Type: " << type->TypeID << " Scope: " << type->LocalScope << ":" << type->ScopePosition << " Size: " << type->Size << std::endl;
-
-                std::cout << std::string((depth + 1) * 2, ' ') << "Attributes: " << std::endl;
-                for(auto& attr : type->Attributes){
-                    traverse(attr, depth + 2);
+        // Object Definitions
+        if(Interpretation->ObjectDefs.size() > 0){
+            std::cout << std::string(IndentCount, ' ') << "Class/Structs: " << std::endl;
+            for(auto A : Interpretation->ObjectDefs){
+                std::cout << std::string(IndentCount * 2, ' ') << A->TypeDefinition << "(" << A->Namespace << ")" << std::endl;
+                
+                // Components
+                if(A->TypeDef_Identifier.size() > 0){
+                    std::cout << std::string(IndentCount * 3, ' ') << "Components: " << std::endl;
+                    for(auto C : A->TypeDef_Identifier){
+                        std::cout << std::string(IndentCount * 4, ' ') << C->Identifier << ": t" << ((C->Pointer) ? "*" : "") << "(" << C->TypeDef << ")" << ((C->Private) ? "P" : "") << ((C->Protected) ? "p" : "") << ((C->Constant) ? "c" : "") << ((C->Static) ? "s" : "") << ((C->InitialValue.size() > 0) ? ("i(" + C->InitialValue + ")") : "") << std::endl;
+                    }
                 }
 
-                std::cout << std::string((depth + 1) * 2, ' ') << "Methods: " << std::endl;
-                for(auto& attr : type->Methods){
-                    traverse(attr, depth + 2);
+                // Functions
+                if(A->AssociatedFunctions.size() > 0){
+                    std::cout << std::string(IndentCount * 3, ' ') << "Functions: " << std::endl;
+                    for(auto C : A->AssociatedFunctions){
+                        LogFunctionDefinition(C, 4);
+                    }
                 }
             }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeVariable){
-                Parsing::SemanticVariables::Variable* type = (Parsing::SemanticVariables::Variable*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Variable: " << type->Identifier << " Type: " << type->TypeID << " Init: " << type->InitValue << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeLiteral){
-                Parsing::SemanticVariables::SemLiteral* type = (Parsing::SemanticVariables::SemLiteral*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Value: " << type->Value << " Type: " << type->TypeID << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeVariableRef){
-                Parsing::SemanticVariables::VariableRef* type = (Parsing::SemanticVariables::VariableRef*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Reference of: " << type->Identifier << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeFunctionRef){
-                Parsing::SemanticVariables::FunctionRef* type = (Parsing::SemanticVariables::FunctionRef*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Reference of: " << type->Identifier << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeRegisterRef){
-                Parsing::SemanticVariables::RegisterRef* type = (Parsing::SemanticVariables::RegisterRef*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Register: " << type->Register << " Size: " << type->Size << " Type: " << type->typeID << " Scope: " << type->LocalScope << ":" << type->ScopePosition << std::endl;
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeFunction){
-                Parsing::SemanticVariables::Function* func = (Parsing::SemanticVariables::Function*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Function: " << func->Identifier << " Scope: " << func->LocalScope << ":" << func->ScopePosition << std::endl;
+        }
 
-                std::cout << std::string((depth + 1) * 2, ' ') << "Parameters: " << std::endl;
-                for(auto& child : func->Parameters){
-                    traverse(child, depth + 2);
-                }
-                std::cout << std::string((depth + 1) * 2, ' ') << "Block: " << std::endl;
-                for(auto& child : func->Block){
-                    traverse(child, depth + 2);
-                }
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeScope){
-                Parsing::SemanticVariables::Scope* scopeVar = (Parsing::SemanticVariables::Scope*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Scope: " << scopeVar->LocalScope << ":" << scopeVar->ScopePosition << std::endl;
-                for(auto& child : scopeVar->Block){
-                    traverse(child, depth + 1);
+        // Function Definitions
+        if(Interpretation->FunctionDefs.size() > 0){
+            std::cout << std::string(IndentCount, ' ') << "Functions: " << std::endl;
+            for(auto A : Interpretation->FunctionDefs){
+                if(A->Namespace.find("__CLASS__") == A->Namespace.npos){
+                    // Not listed as part of classes
+                    LogFunctionDefinition(A, 2);
                 }
             }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeOperation){
-                Parsing::SemanticVariables::Operation* scopeVar = (Parsing::SemanticVariables::Operation*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Operation: "  << scopeVar->TypeID <<  " Scope: " << scopeVar->LocalScope << ":" << scopeVar->ScopePosition << std::endl;
-                std::cout << std::string((depth + 1) * 2, ' ') << "Parameters: " << std::endl;
-                for(auto& child : scopeVar->Parameters){
-                    traverse(child, depth + 2);
-                }
-            }
-            if(scope->Type() == Parsing::SemanticVariables::SemanticTypes::SemanticTypeStatement){
-                Parsing::SemanticVariables::SemStatement* statement = (Parsing::SemanticVariables::SemStatement*)scope;
-                std::cout << std::string(depth * 2, ' ') << "Statement: " << statement->TypeID << " Scope: " << statement->LocalScope << ":" << statement->ScopePosition << std::endl;
-                std::cout << std::string((depth + 1) * 2, ' ') << "Parameters: " << std::endl;
-                for(auto& child : statement->Parameters){
-                    traverse(child, depth + 2);
-                }
-                std::cout << std::string((depth + 1) * 2, ' ') << "Block: " << std::endl;
-                for(auto& child : statement->Block){
-                    traverse(child, depth + 2);
-                }
-                std::cout << std::string((depth + 1) * 2, ' ') << "Alternatives: " << std::endl;
-                for(auto& child : statement->Alternatives){
-                    traverse(child, depth + 2);
-                }
-            }
-        };
-        traverse(semanticAnalyser->getRootScope(), 0);
-        std::cout << "------ End Semantic Analysis ------" << std::endl;
+        }
     }
+
+    // if(semanticAnalyser->getRootScope() == nullptr){
+    //     std::cerr << "Failed to compile!" << std::endl;
+    //     return -1;
+    // }
+    // if(CompilerInformation::DebugAll()){
+    //     std::cout << "-------- Semantic Analysis --------" << std::endl;
+    //     // std::cout << "Types: " << std::endl;
+    //     // for(auto& type : SemanticTypeMap){
+    //     //     if(type.second.Scope < 0) continue;
+    //     //     std::cout << "  Name: " << type.first << " Scope: " << type.second.Scope << " Size: " << type.second.Size << std::endl;
+    //     // }
+    //     // std::cout << "Functions: " << std::endl;
+    //     // for(auto& func : SemanticFunctionMap){
+    //     //     if(func.second.Scope < 0) continue;
+    //     //     std::cout << "  Name: " << func.first << " Scope: " << func.second.Scope << std::endl;
+    //     // }
+
+    //     std::cout << "Tree: " << std::endl;
+
+    //     // Tree traverse block chain from root scope printing out types
+    //     std::function<void(Parsing::SemanticVariables::SemanticVariable*, int)> traverse = [&](Parsing::SemanticVariables::SemanticVariable* scope, int depth){
+            
+    //     };
+    //     traverse(semanticAnalyser->getRootScope(), 0);
+    //     std::cout << "------ End Semantic Analysis ------" << std::endl;
+    // }
 
     if(CompilerInformation::DebugAll()){
         std::cout << "Begining Assembly Generation..." << std::endl;
@@ -190,21 +183,21 @@ int main(int argc, char* argv[]){
 
     return 0;
 
-    // Start Generation
-    Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
-    std::string assembly = generator->Generate(semanticAnalyser->getRootScope());
+    // // Start Generation
+    // Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
+    // std::string assembly = generator->Generate(semanticAnalyser->getRootScope());
 
-    if(CompilerInformation::DebugAll())
-        std::cout << "Generated Assembly -> Exporting to " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
+    // if(CompilerInformation::DebugAll())
+    //     std::cout << "Generated Assembly -> Exporting to " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
 
-    // Write to file
-    {
-        InputStream::FileHandler output_file = InputStream::FileHandler(InputStream::__COMPILATION_CONFIGURATION->OutputFile());
-        output_file = assembly;
-        output_file.Close();
-    }
+    // // Write to file
+    // {
+    //     InputStream::FileHandler output_file = InputStream::FileHandler(InputStream::__COMPILATION_CONFIGURATION->OutputFile());
+    //     output_file = assembly;
+    //     output_file.Close();
+    // }
 
-    std::cout << "Compilation Successful! Output: " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
+    // std::cout << "Compilation Successful! Output: " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
 
     return 0;
 }

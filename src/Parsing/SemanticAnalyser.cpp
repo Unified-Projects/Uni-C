@@ -8,80 +8,6 @@ using namespace Parsing::SemanticVariables;
 
 #include <iostream> // Used for error logging
 
-std::map<LexicalAnalyser*, Scope*> SemanticLexerScopeMap = {};
-
-std::map<std::string, SemanticTypeDefinition> SemanticTypeMap = {
-    // TypeName : DefinedScope
-    std::pair<std::string, SemanticTypeDefinition>("int", {"int", 0, 4, {}, nullptr, 0, 0, 0}),
-    std::pair<std::string, SemanticTypeDefinition>("uint", {"uint", 0, 4, {}, nullptr, 0, 0, 1}),
-    std::pair<std::string, SemanticTypeDefinition>("short", {"short", 0, 2, {}, nullptr, 0, 0, 2}),
-    std::pair<std::string, SemanticTypeDefinition>("ushort", {"ushort", 0, 2, {}, nullptr, 0, 0, 3}),
-    std::pair<std::string, SemanticTypeDefinition>("long", {"long", 0, 8, {}, nullptr, 0, 0, 4}),
-    std::pair<std::string, SemanticTypeDefinition>("ulong", {"ulong", 0, 8, {}, nullptr, 0, 0, 5}),
-    std::pair<std::string, SemanticTypeDefinition>("float", {"float", 0, 4, {}, nullptr, 0, 0, 6}),
-    std::pair<std::string, SemanticTypeDefinition>("double", {"double", 0, 8, {}, nullptr, 0, 0, 7}),
-    std::pair<std::string, SemanticTypeDefinition>("char", {"char", 0, 1, {}, nullptr, 0, 0, 8}),
-    std::pair<std::string, SemanticTypeDefinition>("uchar", {"uchar", 0, 1, {}, nullptr, 0, 0, 9}),
-    std::pair<std::string, SemanticTypeDefinition>("bool", {"bool", 0, 1, {}, nullptr, 0, 0, 10}),
-    std::pair<std::string, SemanticTypeDefinition>("void", {"void", 0, 1, {}, nullptr, 0, 0, 11}),
-    std::pair<std::string, SemanticTypeDefinition>("string", {"string", 0, 16, {}, nullptr, 0, 0, 12}),
-    std::pair<std::string, SemanticTypeDefinition>("*", {"*", 0, 8, {}, nullptr, 0, 0, 13}), // TODO Pointers
-};
-
-std::map<std::string, SemanticOperationTypes> SemanticOperationMap = {
-    {"=", SemanticOperationAssignment},
-    {"+", SemanticOperationAddition},
-    {"-", SemanticOperationSubtraction},
-    {"*", SemanticOperationMultiplication},
-    {"/", SemanticOperationDivision},
-    {"%", SemanticOperationModulus},
-    {"++", SemanticOperationIncrement},
-    {"--", SemanticOperationDecrement},
-    {"==", SemanticOperationEqual},
-    {"!=", SemanticOperationNotEqual},
-    {">", SemanticOperationGreater},
-    {"<", SemanticOperationLess},
-    {">=", SemanticOperationGreaterEqual},
-    {"<=", SemanticOperationLessEqual},
-    {"&&", SemanticOperationAnd},
-    {"||", SemanticOperationOr},
-    {"!", SemanticOperationNot},
-    {"&", SemanticOperationBitwiseAnd},
-    {"|", SemanticOperationBitwiseOr},
-    {"~", SemanticOperationBitwiseNot},
-    {"^", SemanticOperationBitwiseXor},
-    {"<<", SemanticOperationBitwiseLeftShift},
-    {">>", SemanticOperationBitwiseRightShift},
-    {"?", SemanticOperationTernary},
-    {"()", SemanticOperationFunctionCall},
-    {"[]", SemanticOperationArrayAccess},
-    {".", SemanticOperationMemberAccess},
-    {">", SemanticOperationPointerAccess}
-};
-
-int SemanticNextTypeID = 13;
-
-std::map<std::string, SemanticFunctionDeclaration> SemanticFunctionMap = {
-    // FunctionName : DefinedScope
-    {"printf", {"PrintString", "void", {{"string", "Message", ""}}, -1, true, nullptr, -1, -1, -1, 1}},
-    {"malloc", {"AllocateMemory", "ulong", {{"ulong", "Size", ""}}, -1, true, nullptr, -1, -1, -1, 1}}
-};
-
-std::map<int, SemanticVariable*> SemanticScopeMap = {
-    // ScopePosition : Scope
-};
-
-std::vector<std::string> ExternFunctionsNeeded = {
-
-};
-
-// Current State Information
-Function* Semantic__CurrentFunction = nullptr;
-
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end = TokenTypes::LineEnd, int EndOffset = 0, Function* func = nullptr);
-SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func = nullptr);
-void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart, Function* func);
-
 std::map<int, std::string> SemanticFunctionArgs{
     // ArgNumber : register
     {0, "rdi"},
@@ -93,1382 +19,801 @@ std::map<int, std::string> SemanticFunctionArgs{
     // TODO Continue into stack....
 };
 
-void EvaluateFuncArguments(SemanticFunctionDeclaration Func, SemanticVariable* Parent, std::vector<SemanticVariable*>* Store, LexicalAnalyser* lexer, int* tokenStart, Function* func){
-    int i = *tokenStart;
+//TODO Finish all
+// std::vector<std::string> StandardTypeDefs = {
+//     "int",
+//     "uint",
+//     "short",
+//     "ushort",
+//     "long",
+//     "ulong",
+//     "float",
+//     "double",
+//     "char",
+//     "uchar",
+//     "bool",
+//     "void",
+//     "string"
+// };
 
-    // Argument Start Token
-    int Start = i;
+std::map<std::string, SemanticTypeDefDeclaration*> StandardisedTypes{
+    {"int", new SemanticTypeDefDeclaration{"int", 4, false, {false, ""}, "__GLOB__"}},
+    {"uint", new SemanticTypeDefDeclaration{"uint", 4, false, {false, ""}, "__GLOB__"}},
+    {"short", new SemanticTypeDefDeclaration{"short", 2, false, {false, ""}, "__GLOB__"}},
+    {"ushort", new SemanticTypeDefDeclaration{"ushort", 2, false, {false, ""}, "__GLOB__"}},
+    {"long", new SemanticTypeDefDeclaration{"long", 8, false, {false, ""}, "__GLOB__"}},
+    {"ulong", new SemanticTypeDefDeclaration{"ulong", 8, false, {false, ""}, "__GLOB__"}},
+    {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
+    {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
+    {"char", new SemanticTypeDefDeclaration{"char", 1, false, {false, ""}, "__GLOB__"}},
+    {"uchar", new SemanticTypeDefDeclaration{"uchar", 1, false, {false, ""}, "__GLOB__"}},
+    {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
+    {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
+    {"string", new SemanticTypeDefDeclaration{"string", 12, false, {false, ""}, "__GLOB__"}}
+};
+std::map<SemanticTypeDefDeclaration*, SemanticObjectDefinition*> StandardObjectTypes{
+    {StandardisedTypes["string"], new SemanticObjectDefinition{"string", {new SemanticObjectDefinition::ObjectComponent{true, false, false, false, false, "ulong", "Length", "0"}, new SemanticObjectDefinition::ObjectComponent{true, false, false, false, true, "char", "Data", "0"}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
+};
 
-    for(int ArgIndex = 0; ArgIndex < Func.Parameters.size(); ArgIndex++){
-        Operation* ArgumentOpeation = new Operation();
-        ArgumentOpeation->TypeID = SemanticOperationScoper;
-        ArgumentOpeation->ParentScope = Parent->LocalScope;
-        ArgumentOpeation->LocalScope = Parent->LocalScope;
-        ArgumentOpeation->ScopePosition = Parent->NextScopePosition++;
-        ArgumentOpeation->Parent = Parent;
-        ArgumentOpeation->TokenIndex = i;
+namespace Classifiers{ // Functions that are used to classify types of things like statements and operations
+    int FindObjectVariableDefinitions(SemanticisedFile* File, SemanticObjectDefinition* Obj, int StartI, int EndI, std::string NameSpace){
+        LexicalAnalyser* Lexar = File->Lexar;
 
-        if(Func.Parameters.size() < ArgIndex+1){
-            std::cerr << "Error: Too Many Arguments at line " << lexer->getToken(i).fileLine << std::endl;
-            return;
-        }
+        for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){ // Manual Incremenation
+            // Skip Embed Blocks
+            if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                i++; // '{'
+                int EndNeeded = 1;
+                while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                        EndNeeded--;
+                    }
+                    else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                        EndNeeded++;
+                    }
 
-        // VariableRef* id = new VariableRef();
-        // id->Identifier = Func.Parameters[ArgIndex].Name;
-        // id->ParentScope = ArgumentOpeation->LocalScope;
-        // id->LocalScope = ArgumentOpeation->LocalScope;
-        // id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
-        // id->Parent = ArgumentOpeation;
-
-        // Use register arguments instead of a variables
-        RegisterRef* id = new RegisterRef();
-        id->Register = SemanticFunctionArgs[ArgIndex];
-        id->ParentScope = ArgumentOpeation->LocalScope;
-        id->LocalScope = ArgumentOpeation->LocalScope;
-        id->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
-        id->Parent = ArgumentOpeation;
-        id->Size = SemanticTypeMap[Func.Parameters[ArgIndex].Type].Size;
-        id->typeID = SemanticTypeMap[Func.Parameters[ArgIndex].Type].TypeID;
-        id->TokenIndex = i;
-
-        ArgumentOpeation->Parameters.push_back(id);
-
-        if(Func.Parameters.size() - ArgIndex > 1){
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentSeparator, 0, func);
-        }
-        else{
-            EvaluateOperands(ArgumentOpeation, lexer, &i, TokenTypes::ArgumentEnd, 0, func);
-        }
-
-        // Load Operator
-        Operation* op = new Operation();
-        op->TypeID = SemanticOperationAssignment;
-        op->ParentScope = ArgumentOpeation->LocalScope;
-        op->LocalScope = ArgumentOpeation->LocalScope;
-        op->ScopePosition = ArgumentOpeation->Parent->NextScopePosition++;
-        op->Parent = ArgumentOpeation;
-        id->TokenIndex = i;
-
-        ArgumentOpeation->Parameters.push_back(op);
-
-        ((Operation*)Parent)->Parameters.push_back(ArgumentOpeation);
-
-        ArgIndex++;
-    }
-
-    if(lexer->getToken(i).tokenType == TokenTypes::LineEnd){
-        std::cerr << "Error: Expected ')' at line " << lexer->getToken(i).fileLine << std::endl;
-        return;
-    }
-
-    tokenStart[0] = i;
-    return;
-}
-
-int EvaluateOperands(Operation* OpParent, LexicalAnalyser* Lexer, int* tokenStart, TokenTypes end, int EndOffset, Function* func){
-    int i = *tokenStart;
-
-    // Find Distance to line end
-    int LineEnd = -1;
-    for(int j = i; j < Lexer->Tokens().size(); j++){
-        if(Lexer->getToken(j).tokenType == end){
-            LineEnd = j - EndOffset;
-            break;
-        }
-    }
-
-    if(LineEnd == -1){
-        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i).fileLine << std::endl;
-        return -1;
-    }
-    else if(LineEnd == i){
-        std::cerr << "Error: Expected Operand at line " << Lexer->getToken(i).fileLine << std::endl;
-        return -1;
-    }
-
-    std::stack<Operation*> OperatorStack = {};
-
-    while(i < LineEnd){
-
-        Token Operand = Lexer->getToken(i);
-        switch (Operand.tokenType)
-        {
-        case TokenTypes::Literal:
-            {
-                // Load literal
-                SemLiteral* lit = new SemLiteral();
-                lit->Value = Operand.tokenValue;
-                // TODO Custom Intialisers
-                if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
-                    lit->TypeID = SemanticTypeMap["int"].TypeID;
+                    i++;
                 }
-                else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
-                    lit->TypeID = SemanticTypeMap["double"].TypeID;
-                }
-                else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
-                    lit->TypeID = SemanticTypeMap["bool"].TypeID;
-                }
-                else if(lit->Value[0] == '\"' && lit->Value.ends_with("\"")){
-                    lit->TypeID = SemanticTypeMap["string"].TypeID;
-                }
-                else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
-                    lit->TypeID = SemanticTypeMap["char"].TypeID;
-                }
-                else{
-                    std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i).fileLine << std::endl;
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
                     return -1;
                 }
-                lit->LocalScope = OpParent->LocalScope;
-                lit->ScopePosition = OpParent->Parent->NextScopePosition++;
-                lit->Parent = OpParent;
-                lit->TokenIndex = i;
+            }
+
+            if(Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                i++;
+                continue;
+            }
+
+            // Load Types
+            // Should go (c/s)|("") (p/P)|("") (TypeDef / Identifier) (Identifier) ("")|("=" "(Value)") ;
             
-                OpParent->Parameters.push_back(lit);
+            // Config Values
+            bool Private = false;
+            bool Protected = false;
+            bool Constant = false;
+            bool Static = false;
+            bool Pointer = false;
+
+            std::string TypeDef = "";
+            std::string Identifier = "";
+            std::string InitialValue = "";
+
+            // First check for Static/Const (Can be skipped)
+            if(Lexar->getToken(i).tokenType == TokenTypes::Statement){
+                if(Lexar->getToken(i).tokenValue == "const"){
+                    Constant = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "static"){
+                    Static = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "protected"){
+                    Protected = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "private"){
+                    Private = true;
+                }
+                else{
+                    i++;
+                    continue; // Not valid
+                }
+
+                i++; // Skip it
+            }
+
+            if(Lexar->getToken(i).tokenType == TokenTypes::Statement && (Constant || Static)) { // Could have protected or private after
+                if(Lexar->getToken(i).tokenValue == "protected"){
+                    Protected = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "private"){
+                    Private = true;
+                }
+                else{
+                    i++;
+                    continue; // Not valid
+                }
+
+                i++; // Skip it
+            }
+
+            // Type
+            if(Lexar->getToken(i).tokenType == TokenTypes::TypeDef){
+                // Its a standard type
+                TypeDef = Lexar->getToken(i).tokenValue;
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        TypeDef = Lexar->getToken(i).tokenValue;
+                        break;
+                    }
+                }
+
+                if(TypeDef.size() <= 0){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type not defined " << Lexar->getToken(i).tokenValue << std::endl;
+                    return -1;
+                }
 
                 i++;
             }
-            break;
-        case TokenTypes::Identifier:
-            {
-                if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
-                    auto F = Evaluate(OpParent, &OpParent->Parameters, Lexer, &i, func);
-                    if(F == nullptr){
-                        std::cout << "Failed To Interpret Function Operand" << std::endl;
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type Expected" << std::endl;
+                return -1;
+            }
+
+            // See if this is a pointer
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator && Lexar->getToken(i).tokenValue == "*"){
+                // We are pointer
+                Pointer =  true;
+                i++;
+            }
+
+            // Identifier
+            if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot use type as identifier " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
-                    else{
+                }
+
+                Identifier = Lexar->getToken(i).tokenValue;
+
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart && Lexar->getToken(i-2).tokenType == TokenTypes::Statement){
+                continue; // Could be a subdefined struct
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier Expected" << std::endl;
+                return -1;
+            }
+
+            // Initial value?
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator && Lexar->getToken(i).tokenValue == "="){
+                // Assigning a default value
+                i++;
+                if(Lexar->getToken(i).tokenType == TokenTypes::Literal && Lexar->getToken(i+1).tokenType == TokenTypes::LineEnd){
+                    InitialValue = Lexar->getToken(i).tokenValue;
+                    i+=2;
+                }
+                else{ // TODO Macros able to load here
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Value" << std::endl;
+                    return -1;
+                }
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                // No Initial Value
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentStart){ // Function within the struct
+                int EndNeeded = 0;
+
+                while(Lexar->getToken(i).tokenType != TokenTypes::BlockStart && Lexar->getToken(i).tokenType != TokenTypes::LineEnd){
+                    i++;
+                    if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' or ';'" << std::endl;
+                        return -1;
+                    }
+                }
+
+                EndNeeded += (Lexar->getToken(i).tokenType == TokenTypes::BlockStart);
+                i++;
+
+                while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                        EndNeeded--;
+                    }
+                    else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                        EndNeeded++;
+                    }
+
+                    i++;
+                }
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    return -1;
+                }
+                continue; // Skip the function declaration
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                return -1;
+            }
+
+            // If we got here we can create the component
+            SemanticObjectDefinition::ObjectComponent* ObjComp = new SemanticObjectDefinition::ObjectComponent{};
+            ObjComp->Private = Private;
+            ObjComp->Protected = Protected;
+            ObjComp->Constant = Constant;
+            ObjComp->Static = Static;
+            ObjComp->Pointer = Pointer;
+            ObjComp->TypeDef = TypeDef;
+            ObjComp->Identifier = Identifier;
+            ObjComp->InitialValue = InitialValue;
+
+            Obj->TypeDef_Identifier.push_back(ObjComp);
+        }
+
+        return 0;
+    }
+
+    int FindTypeDeclarations(SemanticisedFile* File, int StartI = 0, int EndI = -1, std::string NameSpace = "__GLOB__"){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        // Start of looking at typedefs
+        for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){ // Manual Incremenation
+            // All start with a statement
+            if(Lexar->getToken(i).tokenType == TokenTypes::Statement){
+                // See if it is a "using" (A redirect)
+                if(Lexar->getToken(i).tokenValue == "using"){
+                    i++; // "using"
+
+                    // First is new type
+                    Token NewIdentifier = Lexar->getToken(i);
+                    i++;
+                    if (NewIdentifier.tokenType == TokenTypes::TypeDef){
+                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot re-assign standard types" << std::endl;
+                        return -1;
+                    }
+                    if(NewIdentifier.tokenType != TokenTypes::Identifier){
+                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier cannot be used" << std::endl;
+                        return -1;
+                    }
+
+                    // See if we already defined it
+                    for(auto x : File->TypeDefs){
+                        if(x->Identifier == NewIdentifier.tokenValue && (x->Namepsace == NameSpace || x->Namepsace == "__GLOB__")){
+                            std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier is already a TypeDef" << std::endl;
+                            return -1;
+                        }
+                    }
+
+                    // Get refering
+                    Token RedirectId = Lexar->getToken(i);
+                    i++;
+
+                    // See if we defined it
+                    SemanticTypeDefDeclaration* Relayed = nullptr;
+                    for(auto x : File->TypeDefs){
+                        if(x->Identifier == RedirectId.tokenValue && (x->Namepsace == NameSpace || x->Namepsace == "__GLOB__")){
+                            Relayed = x;
+                        }
+                    }
+                    if(Relayed){
+                        SemanticTypeDefDeclaration* TypeDefDec = new SemanticTypeDefDeclaration{};
+                        TypeDefDec->Identifier = NewIdentifier.tokenValue;
+                        TypeDefDec->DataSize = Relayed->DataSize;
+                        TypeDefDec->Compound = Relayed->Compound;
+                        TypeDefDec->Refering.Referenceing = true;
+                        TypeDefDec->Refering.RelayTypeDef = RedirectId.tokenValue;
+
+                        File->TypeDefs.push_back(TypeDefDec);
+                    }
+
+                    if (RedirectId.tokenType == TokenTypes::TypeDef){
+                        SemanticTypeDefDeclaration* TypeDefDec = new SemanticTypeDefDeclaration{};
+                        TypeDefDec->Identifier = NewIdentifier.tokenValue;
+                        TypeDefDec->DataSize = StandardisedTypes[RedirectId.tokenValue]->DataSize; // TODO: Work out relayed size of standards
+                        TypeDefDec->Compound = StandardisedTypes[RedirectId.tokenValue]->Compound; // TODO: Depends if it is a string or not (Once again look at standards)
+                        TypeDefDec->Refering.Referenceing = true;
+                        TypeDefDec->Refering.RelayTypeDef = RedirectId.tokenValue;
+
+                        File->TypeDefs.push_back(TypeDefDec);
+                    }else{
+                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "No type defined " << NewIdentifier.tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    if(Lexar->getToken(i++).tokenType != TokenTypes::LineEnd){
+                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected" << std::endl;
+                        return -1;
+                    }
+                    continue;
+                }
+                else if(Lexar->getToken(i).tokenValue == "struct" || Lexar->getToken(i).tokenValue == "class"){
+                    i++; // struct/class
+                    // New typedef
+                    SemanticTypeDefDeclaration* TypeDefDec = new SemanticTypeDefDeclaration{};
+                    SemanticObjectDefinition* ObjectDef = new SemanticObjectDefinition{};
+
+                    // TODO: Interpret Inheritance
+
+                    // Find token name
+                    if(Lexar->getToken(i).tokenType != TokenTypes::Identifier){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier is either a TypeDef or non-Identifier (" << Lexar->getToken(i).tokenValue << ")" << std::endl;
+                        return -1;
+                    }
+
+                    // Already in use?
+                    for(auto x : File->TypeDefs){
+                        if(x->Identifier == Lexar->getToken(i).tokenValue && (x->Namepsace == NameSpace || x->Namepsace == "__GLOB__")){
+                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier already used as a typedef" << std::endl;
+                            return -1;
+                        }
+                    }
+
+                    std::string Ident = Lexar->getToken(i++).tokenValue;
+
+                    // Interpret the block size
+                    if(Lexar->getToken(i).tokenType != TokenTypes::BlockStart){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' expected" << std::endl;
+                        return -1;
+                    }
+                    i++; // '{'
+
+                    int TokenStart = i;
+                    int EndNeeded = 1;
+
+                    while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                        if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                            EndNeeded--;
+                        }
+                        else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                            EndNeeded++;
+                        }
+
+                        i++;
+                    }
+
+                    if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                        return -1;
+                    }
+                    
+                    int TokenEnd = i - 2;
+
+                    if(Lexar->getToken(i).tokenType != TokenTypes::LineEnd){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                        return -1;
+                    }
+                    i++;
+
+                    // Now see if any are defined within
+                    FindTypeDeclarations(File, TokenStart, TokenEnd, NameSpace + "__Class____" + Ident + "__");
+
+                    // Setup TypeDec
+                    TypeDefDec->Identifier = Ident;
+                    TypeDefDec->DataSize = 0;
+                    TypeDefDec->Compound = true;
+                    TypeDefDec->Refering.Referenceing = false;
+                    TypeDefDec->Namepsace = NameSpace;
+
+                    // Load to file
+                    File->TypeDefs.push_back(TypeDefDec); // Relied on for Parenting as we setup variables post
+
+                    // Setup Object Declaration
+                    ObjectDef->TypeDefinition = Ident;
+                    ObjectDef->Inhertance = ""; // TODO Inheritance
+                    ObjectDef->Namespace = NameSpace;
+                    ObjectDef->StartToken = TokenStart;
+                    ObjectDef->EndToken = TokenEnd;
+
+                    if(FindObjectVariableDefinitions(File, ObjectDef, TokenStart, TokenEnd, NameSpace + "__Class____" + Ident + "__")){
+                        return -1;
+                    }
+
+                    // Update Size of TypeDefDec
+                    for(auto C : ObjectDef->TypeDef_Identifier){
+                        // Pointer
+                        if (C->Pointer){
+                            TypeDefDec->DataSize += 8; // Fixed uint64_t pointer size
+                            continue;
+                        }
+
+                        // Then see if its part of defined ones
+                        bool Found = false;
+                        for(auto D : File->TypeDefs){
+                            if(D->Identifier == C->TypeDef){
+                                TypeDefDec->DataSize += D->DataSize;
+                                Found = true;
+                            }
+                        }
+
+                        if(Found)
+                            continue;
+
+                        // Then it must be standard
+                        TypeDefDec->DataSize += StandardisedTypes[C->TypeDef]->DataSize;
+                    }
+
+                    File->ObjectDefs.push_back(ObjectDef);
+
+                    continue;
+                }
+            }
+
+            i++;
+        }
+
+        return 0;
+    }
+
+    int FindFunctions(SemanticisedFile* File, int StartI = 0, int EndI = -1, std::string NameSpace = "__GLOB__"){
+
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        bool BuildingFunctionDef = false;
+
+        // Cannot be defined in blocks other than NameSpaces, Classes/Structs and Globaly
+
+        for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){
+            if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart && !BuildingFunctionDef /*Could be!*/){
+                // Find what opens a block here
+
+                // TODO NAMESPACES
+                // TODO Block Indents
+
+                int IBefore = i;
+
+                // Classes / Structs
+                for(auto c : File->ObjectDefs){
+                    if (c->StartToken == i + 1){
+                        // We are at the begining of this block
+                        FindFunctions(File, c->StartToken, c->EndToken, "__GLOB____CLASS____" + c->TypeDefinition + "__");
+                        i += c->EndToken - c->StartToken;
                         break;
                     }
                 }
 
-                int ArgNumber = -1;
-                bool Found = false;
-                if(func){
-                    for(auto& Args : func->Parameters){
-                        if(Args->Identifier == Operand.tokenValue){
-                            ArgNumber++;
-                            Found = true;
-                            break;
-                        }
-                        ArgNumber++;
-                    }
-                }
-
-                if(ArgNumber != -1 && Found){
-                    // Load argument reference
-                    RegisterRef* id = new RegisterRef();
-                    id->Register = SemanticFunctionArgs[ArgNumber];
-                    id->ParentScope = OpParent->LocalScope;
-                    id->LocalScope = OpParent->LocalScope;
-                    id->ScopePosition = OpParent->Parent->NextScopePosition++;
-                    id->Parent = OpParent;
-                    id->typeID = func->Parameters[ArgNumber]->TypeID;
-                    id->TokenIndex = i;
-
-                    for(auto x : SemanticTypeMap){
-                        if(x.second.TypeID == func->Parameters[ArgNumber]->TypeID){
-                            id->Size = x.second.Size;
-                        }
-                    }
-
-                    OpParent->Parameters.push_back(id);
-                }
-                else{
-                    // Load variable reference
-                    VariableRef* id = new VariableRef();
-                    id->Identifier = Operand.tokenValue;
-                    id->ParentScope = OpParent->LocalScope;
-                    id->LocalScope = OpParent->LocalScope;
-                    id->ScopePosition = OpParent->Parent->NextScopePosition++;
-                    id->Parent = OpParent;
-                    id->TokenIndex = i;
-
-                    OpParent->Parameters.push_back(id);
-                }
-
-                i++;
-            }
-            break;
-        case TokenTypes::Operator:
-            {
-                // Check its valid for internal Operations!
-                if(SemanticOperationMap.find(Operand.tokenValue) == SemanticOperationMap.end()){
-                    std::cerr << "Error: Operator not supported '" << Operand.tokenValue << "' at line " << Lexer->getToken(i).fileLine << std::endl;
+                if(i == IBefore){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Function cannot be defined within another block" << std::endl;
                     return -1;
                 }
 
-                // Load Operator
-                Operation* op = new Operation();
-                op->TypeID = SemanticOperationMap[Operand.tokenValue];
-                op->ParentScope = OpParent->LocalScope;
-                op->LocalScope = OpParent->LocalScope;
-                op->ScopePosition = OpParent->Parent->NextScopePosition++;
-                op->Parent = OpParent;
-                op->TokenIndex = i;
+                i+=2; // Skip both "{" and "}"
+            }
 
+            if(Lexar->getToken(i).tokenType != TokenTypes::TypeDef && Lexar->getToken(i).tokenType != TokenTypes::Identifier && Lexar->getToken(i).tokenType != TokenTypes::Statement){
                 i++;
+                continue;
+            }
 
-                while( OperatorStack.size() > 0 && OperatorStack.top()->TypeID >= op->TypeID){
-                    OpParent->Parameters.push_back(OperatorStack.top());
-                    OperatorStack.pop();
+            std::string TypeDef = "";
+            std::string FunctionName = "";
+            bool Static = false;
+            bool Private = false;
+            int FunctionStartToken = -1;
+            int FunctionEndToken = -1;
+
+            if(Lexar->getToken(i).tokenType == TokenTypes::Statement){
+                // We should only see Using or Struct/Class
+                if(Lexar->getToken(i).tokenValue == "struct" || Lexar->getToken(i).tokenValue == "class"){
+                    i+=2; // Skip struct and identifier (Rest is auto handled ^)
+                    continue;
                 }
-                OperatorStack.push(op);
-            }
-            break;
-        case TokenTypes::ArgumentStart:
-            {
-                Operation* op = new Operation();
-                op->TypeID = SemanticOperationScoper;
-                op->ParentScope = OpParent->LocalScope;
-                op->LocalScope = OpParent->LocalScope;
-                op->ScopePosition = OpParent->NextScopePosition++;
-                op->Parent = OpParent;
-                op->TokenIndex = i;
-
-                OperatorStack.push(op);
-                i++;
-            }
-            break;
-        case TokenTypes::ArgumentEnd:
-            {
-                while(OperatorStack.size() > 0 && OperatorStack.top()->TypeID != SemanticOperationScoper){
-                    OpParent->Parameters.push_back(OperatorStack.top());
-                    OperatorStack.pop();
+                else if(Lexar->getToken(i).tokenValue == "using"){
+                    i+=4;
+                    continue;
                 }
-                OperatorStack.pop();
-                i++;
-            }
-            break;
-        default:
-            std::cerr << "Error: Operand Type Not Supported at line " << Lexer->getToken(i).fileLine << std::endl; // TODO
-            return -1;
-            break;
-        }   
-    }
- 
-    while(OperatorStack.size() > 0){
-        OpParent->Parameters.push_back(OperatorStack.top());
-        OperatorStack.pop();
-    }
-
-    tokenStart[0] = i;
-
-    return 0;
-}
-
-SemanticVariable* Evaluate(SemanticVariable* Parent, std::vector<SemanticVariable*>* Store,  LexicalAnalyser* Lexer, int* tokenStart, Function* func){
-    int i = *tokenStart;
-    Token token = Lexer->getToken(i);
-
-    std::cout << token.tokenFileLine << std::endl;
-
-    SemanticVariable* Result = nullptr;
-
-    switch (token.tokenType)
-    {
-    case TokenTypes::TypeDef:
-        {   
-            // Start building variable
-            Variable* var = new Variable();
-            var->ParentScope = Parent->LocalScope;
-            var->LocalScope = Parent->LocalScope;
-            var->ScopePosition = Parent->NextScopePosition++;
-            var->Parent = Parent;
-            var->TokenIndex = i;
-
-            // Get Identifier
-            if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                var->Identifier = Lexer->getToken(i+1).tokenValue;
-            }
-            else{
-                std::cerr << "Error: Expected Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                return nullptr;
-            }
-
-            // Get Type
-            var->TypeID = SemanticTypeMap[Lexer->getToken(i).tokenValue].TypeID;
-
-            // Initial Value If Present
-            if(Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){ // Unless Value!! // TODO
-                if(Lexer->getToken(i+2).tokenType == TokenTypes::Operator && Lexer->getToken(i+2).tokenValue == std::string("=")){
-                    if(Lexer->getToken(i+3).tokenType == TokenTypes::Literal){
-                        var->InitValue = Lexer->getToken(i+3).tokenValue;
-                        if(Lexer->getToken(i+4).tokenType != TokenTypes::LineEnd){
-                            std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+4).fileLine << std::endl;
-                            return nullptr;
-                        }
-                    }
-                    else{
-                        std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+3).fileLine << std::endl;
-                        return nullptr;
-                    }
+                else if(Lexar->getToken(i).tokenValue == "static"){
+                    Static = true;
+                    i++;
+                }
+                else if(Lexar->getToken(i).tokenValue == "private"){
+                    Private = true;
+                    i++;
                 }
                 else{
-                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                i+=2; // Skip forwards
-            }
-
-            // Token Index Correction
-            i += 2;
-
-            Store->push_back(var);
-            Result = var;
-        }
-        break;
-
-    case TokenTypes::Identifier:
-        {
-            // Variable Initialisation
-            // TODO Variable Initialisation of custom typeDef
-
-            // Operation
-            // Store Variable
-            std::string VariableName = token.tokenValue;
-
-            // Check for Operation
-            if(Lexer->getToken(i+1).tokenType == TokenTypes::Operator){
-                if(Lexer->getToken(i+1).tokenValue == std::string("=")){ // Assignment
-                    // Create Operator
-                    Operation* op = new Operation();
-                    op->TypeID = SemanticOperationAssignment;
-                    op->ParentScope = Parent->LocalScope;
-                    op->LocalScope = Parent->LocalScope;
-                    op->ScopePosition = Parent->NextScopePosition++;
-                    op->Parent = Parent;
-                    op->TokenIndex = i+1;
-
-                    // Get Operand
-                    if(EvaluateOperands(op, Lexer, &i, TokenTypes::LineEnd, 0, func)){
-                        std::cerr << "Operator Invalid at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                        return nullptr;
-                    }
-
-                    // Current Token is line end
-                    if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
-                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                        return nullptr;
-                    }
-
-                    Store->push_back(op);
-                    Result = op;
-                }
-                else{
-                    std::cerr << "Opeator not supported '" << Lexer->getToken(i+1).tokenValue << "' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
+                    i++;
+                    continue;
                 }
             }
-            else if(Lexer->getToken(i+1).tokenType == TokenTypes::ArgumentStart){
-                // Check this is a function
-                if(SemanticFunctionMap.find(VariableName) == SemanticFunctionMap.end()){
-                    std::cerr << "Error: Function Not Defined at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
 
-                if(SemanticFunctionMap[VariableName].Builtin){
-                    if(std::find(ExternFunctionsNeeded.begin(), ExternFunctionsNeeded.end(), VariableName) == ExternFunctionsNeeded.end()){
-                        ExternFunctionsNeeded.push_back(VariableName);
+            /// Type
+            if(Lexar->getToken(i).tokenType == TokenTypes::TypeDef){
+                // Its a standard type
+                TypeDef = Lexar->getToken(i).tokenValue;
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        TypeDef = Lexar->getToken(i).tokenValue;
+                        break;
                     }
                 }
 
-                // Function Call
-                Operation* op = new Operation();
-                op->TypeID = SemanticOperationFunctionCall;
-                op->ParentScope = Parent->LocalScope;
-                op->LocalScope = Parent->LocalScope;
-                op->ScopePosition = Parent->NextScopePosition++;
-                op->Parent = Parent;
-                op->TokenIndex = i;
+                if(TypeDef.size() <= 0){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type not defined " << Lexar->getToken(i).tokenValue << std::endl;
+                    return -1;
+                }
 
-                // Add first paramenter of the identifier
-                FunctionRef* id = new FunctionRef();
-                id->Identifier = VariableName;
-                id->ParentScope = op->LocalScope;
-                id->LocalScope = op->LocalScope;
-                id->ScopePosition = op->Parent->NextScopePosition++;
-                id->Parent = op;
-                id->Size = SemanticTypeMap[SemanticFunctionMap[VariableName].ReturnType].Size;
-                id->TokenIndex = i+1;
-
-                op->Parameters.push_back(id);
-
-                i+=2; // Start parathensis
-
-                // Get Arguments
-                EvaluateFuncArguments(SemanticFunctionMap[VariableName], op, &op->Parameters, Lexer, &i, func);
-                i++; // End parathensis
-
-                // Current Token is line end
-                // if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
-                //     std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                //     return nullptr;
-                // }
-
-                Store->push_back(op);
-                Result = op;
+                i++;
             }
             else{
-                std::cerr << "Unexpected Identifier at line " << Lexer->getToken(i).fileLine << std::endl;
+                
             }
-        }
-        break;
 
-    case TokenTypes::Statement:
-        {
-            // Statement
-            if(token.tokenValue == std::string("return")){
-                // Should have a literal then a line end or a identifier then a line end
-                if (Lexer->getToken(i+1).tokenType != TokenTypes::LineEnd){
+            if(Lexar->getToken(i).tokenValue == "*"){
+                // Most likeley global variable
+                while(Lexar->getToken(i).tokenType != TokenTypes::LineEnd && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    i++;
+                }
 
-                    // Valid Return
-                    SemStatement* ret = new SemStatement();
-                    ret->TypeID = SemanticStatementTypes::SemanticStatementReturn;
-                    ret->ParentScope = Parent->LocalScope;
-                    ret->LocalScope = Parent->LocalScope;
-                    ret->ScopePosition = Parent->NextScopePosition++;
-                    ret->Parent = Parent;
-                    ret->TokenIndex = i;
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                    return -1;
+                }
+
+                i++;
+                continue;
+            }
+
+            // Find function name
+            if(Lexar->getToken(i).tokenType != TokenTypes::Identifier){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier is either a TypeDef or non-Identifier (" << Lexar->getToken(i).tokenValue << ")" << std::endl;
+                return -1;
+            }
+
+            // Already in use?
+            for(auto x : File->TypeDefs){
+                if(x->Identifier == Lexar->getToken(i).tokenValue && (x->Namepsace == NameSpace || x->Namepsace == "__GLOB__")){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier already used as a typedef" << std::endl;
+                    return -1;
+                }
+            }
+
+            FunctionName = Lexar->getToken(i++).tokenValue;
+
+            // Could be global variable
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator || Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                // Most likeley global variable
+                while(Lexar->getToken(i).tokenType != TokenTypes::LineEnd && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    i++;
+                }
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                    return -1;
+                }
+
+                i++;
+                continue;
+            }
+
+            // Arguments
+            if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentStart){
+                // Find end argument
+                int StartArgument = i;
+
+                // Most likeley global variable
+                while(Lexar->getToken(i).tokenType != TokenTypes::ArgumentEnd && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    i++;
+                }
+
+                int ArgumentEnd = i;
+
+                i++;
+                
+                // TODO Argument parsing
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' Expected" << std::endl;
+                    return -1;
+                }
+            }
+
+            // Block data
+            if(Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                // See if it is defined
+                for(auto F : File->FunctionDefs){
+                    if(F->Symbol == NameSpace + "__" + FunctionName + "__"){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << F->Symbol << "Already defined" << std::endl;
+                        return -1;
+                    }
+                }
+
+                // End of function definition
+                SemanticFunctionDeclaration* FuncDef = new SemanticFunctionDeclaration{};
+                FuncDef->Identifier = FunctionName;
+                FuncDef->FunctionReturn.WillReturn = (TypeDef != "void");
+                FuncDef->FunctionReturn.TypeDef = TypeDef;
+                FuncDef->Parameters = {};
+                FuncDef->IsBuiltin = false; // TODO Lookup in a table to check (As this is where it is important)
+                FuncDef->Namespace = NameSpace;
+                FuncDef->Symbol = NameSpace + "__" + FunctionName + "__";
+                FuncDef->Static = Static;
+                FuncDef->Private = Private;
+                FuncDef->StartToken = FunctionStartToken;
+                FuncDef->EndToken = FunctionEndToken;
+
+                File->FunctionDefs.push_back(FuncDef);
+
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                // TODO COULD DEFINE A ASSOCIATED FILE
+
+                // Find end Block
+                int TokenStart = i;
+                int EndNeeded = 1;
+
+                i++;
+
+                while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                        EndNeeded--;
+                    }
+                    else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                        EndNeeded++;
+                    }
 
                     i++;
-
-                    // Load argument
-                    Operation* op = new Operation();
-                    op->TypeID = SemanticOperationScoper;
-                    op->ParentScope = ret->LocalScope;
-                    op->LocalScope = ret->LocalScope;
-                    op->ScopePosition = ret->NextScopePosition++;
-                    op->Parent = ret;
-                    op->TokenIndex = i;
-
-                    ret->Parameters.push_back(op);
-
-                    RegisterRef* id = new RegisterRef();
-                    id->Register = "rax";
-                    id->ParentScope = op->LocalScope;
-                    id->LocalScope = op->LocalScope;
-                    id->ScopePosition = op->Parent->NextScopePosition++;
-                    id->Parent = op;
-                    id->typeID = 0;
-                    id->TokenIndex = i+1;
-
-                    op->Parameters.push_back(id);
-
-                    EvaluateOperands(op, Lexer, &i, TokenTypes::LineEnd, 0, func);
-
-                    Operation* assinger = new Operation();
-                    assinger->TypeID = SemanticOperationAssignment;
-                    assinger->ParentScope = ret->LocalScope;
-                    assinger->LocalScope = ret->LocalScope;
-                    assinger->ScopePosition = ret->NextScopePosition++;
-                    assinger->Parent = ret;
-                    assinger->TokenIndex = i+2;
-                    
-                    op->Parameters.push_back(assinger);
-
-                    // // Load argument
-                    // if(Lexer->getToken(i+1).tokenType == TokenTypes::Literal){
-                    //     SemLiteral* lit = new SemLiteral();
-                    //     lit->Value = Lexer->getToken(i+1).tokenValue;
-                    //     // TODO Custom Intialisers
-                    //     if(lit->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1){
-                    //         lit->TypeID = SemanticTypeMap["int"].TypeID;
-                    //     }
-                    //     else if(lit->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == lit->Value.front() || lit->Value.find('-') == std::string::npos) && std::count(lit->Value.begin(), lit->Value.end(), '-') <= 1 && std::count(lit->Value.begin(), lit->Value.end(), '.') <= 1){
-                    //         lit->TypeID = SemanticTypeMap["double"].TypeID;
-                    //     }
-                    //     else if(lit->Value == std::string("true") || lit->Value == std::string("false")){
-                    //         lit->TypeID = SemanticTypeMap["bool"].TypeID;
-                    //     }
-                    //     else if(lit->Value[0] == '\"' && lit->Value.ends_with("\"")){
-                    //         lit->TypeID = SemanticTypeMap["string"].TypeID;
-                    //     }
-                    //     else if(lit->Value[0] == '\'' && lit->Value.ends_with("'")){
-                    //         lit->TypeID = SemanticTypeMap["char"].TypeID;
-                    //     }
-                    //     else{
-                    //         std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    //         return nullptr;
-                    //     }
-
-                    //     lit->ParentScope = ret->LocalScope;
-                    //     lit->LocalScope = ret->LocalScope;
-                    //     lit->ScopePosition = ret->Parent->NextScopePosition++;
-                    //     lit->Parent = ret;
-
-                    //     ret->Parameters.push_back(lit);
-
-                    //     i+=3; // Skip forwards
-                    // }
-                    // else if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                    //     VariableRef* id = new VariableRef();
-                    //     id->Identifier = Lexer->getToken(i+1).tokenValue;
-                    //     id->ParentScope = ret->LocalScope;
-                    //     id->LocalScope = ret->LocalScope;
-                    //     id->ScopePosition = ret->Parent->NextScopePosition++;
-                    //     id->Parent = ret;
-
-                    //     ret->Parameters.push_back(id);
-
-                    //     i+=3; // Skip forwards
-                    // }
-                    // else{
-                    //     std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    //     return nullptr;
-                    // }
-
-                    if(Lexer->getToken(i).tokenType != TokenTypes::LineEnd){
-                        std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
-                        return nullptr;
-                    }
-
-                    Store->push_back(ret);
-                    Result = ret;
                 }
-                else{
-                    std::cerr << "Error: Expected Literal or Identifier at line " << Lexer->getToken(i+1).fileLine << " and token " << (i + 1) << std::endl;
-                    std::cerr << "Non-Return Values Not Implemented" << std::endl;
-                    return nullptr;
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && Lexar->getToken(i-1).tokenType != TokenTypes::BlockEnd){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    return -1;
                 }
+                
+                int TokenEnd = i - 1;
+
+                FunctionStartToken = TokenStart;
+                FunctionEndToken = TokenEnd;
             }
-            else if (token.tokenValue == "if"){
-                // Create A Statememt
-                SemStatement* ifStatement = new SemStatement();
-                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementIf;
-                ifStatement->ParentScope = Parent->LocalScope;
-                ifStatement->LocalScope = Parent->LocalScope;
-                ifStatement->ScopePosition = Parent->NextScopePosition++;
-                ifStatement->Parent = Parent;
-                ifStatement->TokenIndex = i;
-
-                // Get Condition
-                if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
-                    std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                i+=2;
-
-                Operation* op = new Operation();
-                op->TypeID = SemanticOperationScoper;
-                op->ParentScope = ifStatement->LocalScope;
-                op->LocalScope = ifStatement->LocalScope;
-                op->ScopePosition = ifStatement->NextScopePosition++;
-                op->Parent = ifStatement;
-                op->TokenIndex = i;
-
-                // Operation
-                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
-
-                // Add operation to ifStatement
-                ifStatement->Parameters.push_back(op);
-
-                // Check for argument end
-                if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
-                    std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
-                    return nullptr;
-                }
-                i++;
-
-                // Check for block start
-                if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
-                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Check for block end
-                int blockStart = i;
-                int blockEnd = -1;
-                int blockDepth = 0;
-                for(int j = i+1; j < Lexer->Tokens().size(); j++){
-                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-                        blockEnd = j;
-                        break;
-                    }
-                    else{
-                        blockDepth++;
-                    }
-                }
-                i++;
-                
-                // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
-
-                i++; // Remove line end of last line
-
-                // Non-Ended
-                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Load to the parent block
-                Store->push_back(ifStatement);
-                Result = ifStatement;
-
-                // Do we have a else or a else if
-                while(Lexer->getToken(i+1).tokenType == TokenTypes::Statement && Lexer->getToken(i+1).tokenValue == "else"){
-                    i++;
-                    Evaluate(ifStatement, &ifStatement->Alternatives, Lexer, &i, func);
-                }
-            }
-            else if(token.tokenValue == "else" && Lexer->getToken(i+1).tokenValue == "if" && Lexer->getToken(i+1).tokenType == TokenTypes::Statement){
-                i++;
-
-                // Check that this is not after a else
-                if(Store->size() > 0 && Store->back()->Type() == SemanticTypeStatement && ((SemStatement*)Store->back())->TypeID == SemanticStatementTypes::SemanticStatementElse){
-                    std::cerr << "Error: Else If after Else at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Create A Statememt
-                SemStatement* ifStatement = new SemStatement();
-                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElseIf;
-                ifStatement->ParentScope = Parent->LocalScope;
-                ifStatement->LocalScope = Parent->LocalScope;
-                ifStatement->ScopePosition = Parent->NextScopePosition++;
-                ifStatement->Parent = Parent;
-                ifStatement->TokenIndex = i;
-
-                // Get Condition
-                if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
-                    std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                i+=2;
-
-                Operation* op = new Operation();
-                op->TypeID = SemanticOperationScoper;
-                op->ParentScope = ifStatement->LocalScope;
-                op->LocalScope = ifStatement->LocalScope;
-                op->ScopePosition = ifStatement->NextScopePosition++;
-                op->Parent = ifStatement;
-                op->TokenIndex = i;
-
-                // Operation
-                EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1, func);
-
-                // Add operation to ifStatement
-                ifStatement->Parameters.push_back(op);
-
-                // Check for argument end
-                if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
-                    std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
-                    return nullptr;
-                }
-                i++;
-
-                // Check for block start
-                if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
-                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Check for block end
-                int blockStart = i;
-                int blockEnd = -1;
-                int blockDepth = 0;
-                for(int j = i+1; j < Lexer->Tokens().size(); j++){
-                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-                        blockEnd = j;
-                        break;
-                    }
-                    else{
-                        blockDepth++;
-                    }
-                }
-                i++;
-                
-                // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
-
-                // Non-Ended
-                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Load to the parent block
-                Store->push_back(ifStatement);
-                Result = ifStatement;
-            }
-            else if(token.tokenValue == "else"){
-                // Create A Statememt
-                SemStatement* ifStatement = new SemStatement();
-                ifStatement->TypeID = SemanticStatementTypes::SemanticStatementElse;
-                ifStatement->ParentScope = Parent->LocalScope;
-                ifStatement->LocalScope = Parent->LocalScope;
-                ifStatement->ScopePosition = Parent->NextScopePosition++;
-                ifStatement->Parent = Parent;
-                ifStatement->TokenIndex = i;
-
-                // Check for block start
-                if(Lexer->getToken(i+1).tokenType != TokenTypes::BlockStart){
-                    std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Check for block end
-                int blockStart = i+1;
-                int blockEnd = -1;
-                int blockDepth = 0;
-                for(int j = i+2; j < Lexer->Tokens().size(); j++){
-                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-                        blockEnd = j;
-                        break;
-                    }
-                    else{
-                        blockDepth++;
-                    }
-                }
-                i+=2;
-                
-                // Interpret block data
-                Evaluate(ifStatement, &ifStatement->Block, Lexer, &i, func);
-
-                // Non-Ended
-                if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-                    std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-                    return nullptr;
-                }
-
-                // Load to the parent block
-                Store->push_back(ifStatement);
-                Result = ifStatement;
-            }
-            // else if(token.tokenValue == "while"){
-            //     // Create A Statememt
-            //     SemStatement* whileStatement = new SemStatement();
-            //     whileStatement->TypeID = SemanticStatementTypes::SemanticStatementWhile;
-            //     whileStatement->ParentScope = Parent->LocalScope;
-            //     whileStatement->LocalScope = Parent->LocalScope;
-            //     whileStatement->ScopePosition = Parent->NextScopePosition++;
-            //     whileStatement->Parent = Parent;
-
-            //     // Get Condition
-            //     if(Lexer->getToken(i+1).tokenType != TokenTypes::ArgumentStart){
-            //         std::cerr << "Error: Expected '(' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-            //         return nullptr;
-            //     }
-
-            //     i+=2;
-
-            //     Operation* op = new Operation();
-            //     op->TypeID = SemanticOperationScoper;
-            //     op->ParentScope = whileStatement->LocalScope;
-            //     op->LocalScope = whileStatement->LocalScope;
-            //     op->ScopePosition = ifStatement->NextScopePosition++;
-            //     op->Parent = whileStatement;
-                
-            //     // Operation
-            //     EvaluateOperands(op, Lexer, &i, TokenTypes::BlockStart, 1);
-
-            //     // Add operation to whileStatement
-            //     whileStatement->Parameters.push_back(op);
-
-            //     // Check for argument end
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::ArgumentEnd){
-            //         std::cerr << "Error: Expected ')' at line " << Lexer->getToken(i).fileLine << std::endl;
-            //         return nullptr;
-            //     }
-            //     i++;
-
-            //     // Check for block start
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockStart){
-            //         std::cerr << "Error: Expected '{' at line " << Lexer->getToken(i+1).fileLine << std::endl;
-            //         return nullptr;
-            //     }
-
-            //     // Check for block end
-            //     int blockStart = i;
-            //     int blockEnd = -1;
-            //     int blockDepth = 0;
-                
-            //     for(int j = i+1; j < Lexer->Tokens().size(); j++){
-            //         if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-            //             blockEnd = j;
-            //             break;
-            //         }
-            //         else{
-            //             blockDepth++;
-            //         }
-            //     }
-            //     i++;
-
-            //     // Interpret block data
-            //     Evaluate(whileStatement, &whileStatement->Block, Lexer, &i);
-
-            //     // Non-Ended
-            //     if(Lexer->getToken(i).tokenType != TokenTypes::BlockEnd){
-            //         std::cerr << "Error: Missing Ending '}' at line " << Lexer->getToken(i).fileLine << std::endl;
-            //         return nullptr;
-            //     }
-
-            //     // Load to the parent block
-            //     Store->push_back(whileStatement);
-            //     Result = whileStatement;
-            // }
             else{
-                std::cerr << "Statement not supported '" << token.tokenValue << "' at line " << token.fileLine << std::endl;
-                return nullptr;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' or ';' Expected" << std::endl;
+                    return -1;
+            }
+
+            SemanticFunctionDeclaration* FuncDef = new SemanticFunctionDeclaration{};
+            File->FunctionDefs.push_back(FuncDef);
             
+            // See if it is defined
+            for(auto F : File->FunctionDefs){
+                if(F->Symbol == NameSpace + "__" + FunctionName + "__"){
+                    if(F->StartToken < 0){
+                        // TODO VERIFY PARAMETER COUNT AND TYPES!!!!!!!! ALONGSIDE PRIV, STATIC
+
+                        // Its not defined
+                        File->FunctionDefs.pop_back();
+                        delete FuncDef;
+                        FuncDef = F;
+                        break;
+                    }
+
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << F->Symbol << "Already defined" << std::endl;
+                    return -1;
+                }
+            }
+
+            // Load function values
+            FuncDef->Identifier = FunctionName;
+            FuncDef->FunctionReturn.WillReturn = (TypeDef != "void");
+            FuncDef->FunctionReturn.TypeDef = TypeDef;
+            FuncDef->Parameters = {};
+            FuncDef->IsBuiltin = false; // TODO Lookup in a table to check (As this is where it is important)
+            FuncDef->Namespace = NameSpace;
+            FuncDef->Symbol = NameSpace + "__" + FunctionName + "__";
+            FuncDef->Static = Static;
+            FuncDef->Private = Private;
+            FuncDef->StartToken = FunctionStartToken;
+            FuncDef->EndToken = FunctionEndToken;
+
+            if(NameSpace.find_first_of("__CLASS__") != NameSpace.npos){
+                // Its part of a class
+                for(auto C : File->ObjectDefs){
+                    if(C->Namespace + "__CLASS____" + C->TypeDefinition + "__" == NameSpace){
+                        C->AssociatedFunctions.push_back(FuncDef);
+                        break;
+                    }
+                }
             }
         }
-        break;
-    
-    default:
-        break;
+
+        return 0;
     }
-
-    tokenStart[0] = i;
-
-    return Result;
 }
 
 SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 {
     this->AnalysisData = AnalysisData;
 
-    this->RootScope = nullptr; // If remains null, error encountered
+    // Store of currently interpreted
+    std::vector<LexicalAnalyser*> Analysed = {};
 
-    // Create root scope
-    Scope* rootScope = new Scope();
-    rootScope->LocalScope = 0;
-    rootScope->ParentScope = -1;
-    rootScope->ScopePosition = 0;
-    rootScope->Parent = nullptr;
-    rootScope->Block = {};
-    rootScope->TokenIndex = 0;
-    
-    SemanticScopeMap[0] = rootScope;
+    // Holding of semantic Files
+    std::vector<SemanticisedFile*> Interpretations = {};
 
-    int NextScope = 1; 
+    // We still need to analyse some
+    auto it = AnalysisData.begin();
+    while((it = std::find_if(it, AnalysisData.end(), [&Analysed](LexicalAnalyser* item) {
+                return std::find(Analysed.begin(), Analysed.end(), item) == Analysed.end();
+            })) != AnalysisData.end()) {
 
-    { // Create Lexer Scopemap
-        for(auto& Lexer : AnalysisData){
-            // Create new scope for data
-            Scope* LexerScope = new Scope();
-            LexerScope->LocalScope = NextScope++;
-            LexerScope->ParentScope = rootScope->LocalScope;
-            LexerScope->ScopePosition = rootScope->NextScopePosition++;
-            LexerScope->Parent = rootScope;
-            LexerScope->Block = {};
-            LexerScope->TokenIndex = NextScope;
+        // Treat each file separately
+        LexicalAnalyser* Lexar = *it;
 
-            // Add to scopeMap
-            SemanticLexerScopeMap[Lexer] = LexerScope;
+        // Create a File
+        SemanticisedFile* File = new SemanticisedFile{};
 
-            // Add to general Scope Map
-            SemanticScopeMap[LexerScope->LocalScope] = LexerScope;
+        // Load associated Lexar-File
+        File->AssociatedFile = Lexar->GetFilename();
+        File->Lexar = Lexar;
 
-            rootScope->Block.push_back(LexerScope);
-        }
-    }
-
-    { // Create TypeMap
-        // Traverse through AnalysisData
-        for(auto& Lexer : AnalysisData){
-            // Load Scope
-            Scope* LexerScope = SemanticLexerScopeMap[Lexer];
-
-            // Traverse through tokens
-            int TokenCount = Lexer->Tokens().size();
-            for(int i = 0; i < TokenCount; i++){
-                // Get Current Token
-                Token token = Lexer->getToken(i);
-
-                // Check for context Statment
-                if(token.tokenType = TokenTypes::Statement){
-                    // Could be correct Statement
-                    if(token.tokenValue == std::string("struct") || token.tokenValue == std::string("class")){ // TODO using x = y
-                        // Check for type definition
-                        if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                            // Check for block start
-                            if(Lexer->getToken(i+2).tokenType == TokenTypes::BlockStart){ // TODO Inheritance Check
-                                // Check for block end
-                                int blockStart = i+2;
-                                int blockEnd = -1;
-                                int blockDepth = 0;
-                                for(int j = i+3; j < Lexer->Tokens().size(); j++){
-                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd){
-                                        blockEnd = j;
-                                        break;
-                                    }
-                                    else{
-                                        blockDepth++;
-                                    }
-                                }
-
-                                // Non-Ended
-                                if(blockEnd == -1){
-                                    std::cerr << "Error: " << Lexer->getToken(i+1).tokenValue << " Missing Ending '}'" << std::endl;
-                                    return;
-                                }
-                                if(Lexer->getToken(blockEnd+1).tokenType != TokenTypes::LineEnd){
-                                    std::cerr << "Error: " << Lexer->getToken(i+1).tokenValue << " Missing Ending ';' at line " << Lexer->getToken((blockEnd+1)).fileLine << std::endl;
-                                    return;
-                                }
-
-                                if(blockEnd != -1){
-                                    // Reat block attributes
-                                    std::vector<SemanticTypeAttribute> Attributes = {};
-                                    int totalSize = 0;
-
-                                    // Find attributes in block
-                                    for(int j = blockStart + 1; j < blockEnd; j+=3){
-                                        if(Lexer->getToken(j).tokenType == TokenTypes::TypeDef || (Lexer->getToken(j).tokenType == TokenTypes::Identifier && SemanticTypeMap[Lexer->getToken(j).tokenValue].Size > 0)){
-                                            // Type
-                                            std::string Type = Lexer->getToken(j).tokenValue;
-
-                                            // Identifier
-                                            std::string Identifier = Lexer->getToken(j+1).tokenValue;
-
-                                            for(auto &p : Attributes){
-                                                if(p.Name == Identifier){
-                                                    std::cerr << "Error: " << Lexer->getToken(i+1).tokenValue << " has Duplicate Identifier " << Identifier << " at line " << Lexer->getToken(j+1).fileLine << std::endl;
-                                                    return;
-                                                }
-                                            }
-
-                                            // Add size
-                                            totalSize += SemanticTypeMap[Type].Size;
-
-                                            std::string InitVal = "";
-
-                                            if(Lexer->getToken(j+2).tokenType != TokenTypes::LineEnd){
-                                                if(Lexer->getToken(j+2).tokenType == TokenTypes::Operator && Lexer->getToken(j+2).tokenValue == std::string("=")){
-                                                    if(Lexer->getToken(j+2).tokenType == TokenTypes::Operator && Lexer->getToken(j+2).tokenValue == std::string("=")){
-                                                        // Check for Literal
-                                                        if(Lexer->getToken(j+3).tokenType == TokenTypes::Literal){
-                                                            InitVal = Lexer->getToken(j+3).tokenValue;
-
-                                                            if(Lexer->getToken(j+4).tokenType != TokenTypes::LineEnd){
-                                                                std::cerr << "Error: Expected ';' at line " << Lexer->getToken(j+4).fileLine << std::endl;
-                                                                return;
-                                                            }
-
-                                                            // Offset Correction
-                                                            j+=2;
-                                                        }
-                                                        else{
-                                                            // Custom Initialiser TBD // TODO
-                                                            std::cerr << "Error: Expected Literal at line " << Lexer->getToken(j+3).fileLine << std::endl;
-                                                        }
-                                                    }
-                                                }
-                                                else{
-                                                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(j+2).fileLine << std::endl;
-                                                    return;
-                                                }
-                                            }
-
-                                            // Load to Attribute Map
-                                            Attributes.push_back({Type, Identifier, InitVal});
-                                        }
-                                        else{
-                                            std::cerr << "Error: Expected Type at line " << Lexer->getToken(j).fileLine << std::endl;
-                                            return;
-                                        }
-                                    }
-
-                                    // Create TypeDefinition
-                                    SemanticTypeDefinition typeDef = {
-                                        Lexer->getToken(i+1).tokenValue,
-                                        LexerScope->LocalScope,
-                                        totalSize,
-                                        Attributes,
-                                        Lexer,
-                                        blockStart,
-                                        blockEnd,
-                                        SemanticNextTypeID++,
-                                        i,
-                                        blockEnd
-                                    };
-
-                                    // Add to TypeMap
-                                    SemanticTypeMap[Lexer->getToken(i+1).tokenValue] = typeDef;
-                                }
-                            }
-                        }
-                    }
-                }
+        for(int i = 0; i < Lexar->Tokens().size();){ // Manual Incremenation
+            // ONLY ALLOW AT BEGINING
+            if(Lexar->getToken(i).tokenType != TokenTypes::Macro){
+                break; // Stop looking as we have passed min region
             }
-        }
-    }
+            i++; // "#"
 
-    { // Create FunctionMap
-        // Traverse through AnalysisData
-        for(auto& Lexer : AnalysisData){
-            // Load Scope
-            Scope* LexerScope = SemanticLexerScopeMap[Lexer];
-
-            // Traverse through tokens
-            int TokenCount = Lexer->Tokens().size();
-            for(int i = 0; i < TokenCount; i++){
-                // Get Current Token
-                Token token = Lexer->getToken(i);
-
-                // First check for function declaration
-                /*
-                    Type Identifier(Parameters){}
-                    Type Identifier(Parameters)=>{} // TODO
-                    Identifier(Parameters){}:Type // TODO
-                    Identifier(Parameters)=>{}:Type // TODO
-
-                    // TODO Special Case
-                    // TODO Custom Types
-                    // TODO Operators
-                */
-
-                if (i != 0){
-                    // See if the previous token was a statement
-                    if(Lexer->getToken(i - 1).tokenType == TokenTypes::Statement){
-                        continue; // TODO Operator
-                    }
-                }
-
-                // TODO Achnowledge if in struct and if so change scope
-
-                int Depth = 0;
-
-                /*
-                    Type Identifier (Parameters) {}
-                */ 
-                if(token.tokenType == TokenTypes::TypeDef || (token.tokenType == TokenTypes::Identifier && SemanticTypeMap[token.tokenValue].Size > 0)){
-                    // Check for Identifier
-                    if(Lexer->getToken(i+1).tokenType == TokenTypes::Identifier){
-                        // Found name
-                        std::string Name = Lexer->getToken(i+1).tokenValue;
-                        std::string ReturnType = token.tokenValue;
-                        std::vector<SemanticTypeAttribute> Parameters = {}; // Type, Name
-
-                        // Check for Parameters
-                        if(Lexer->getToken(i+2).tokenType == TokenTypes::ArgumentStart){
-                            int ArgumentEndIndex = i+3; // Index if no args
-                            if(Lexer->getToken(ArgumentEndIndex).tokenType != TokenTypes::ArgumentEnd){
-                                int Offset = 0;
-                                // Load parameters
-                                while(Lexer->getToken(ArgumentEndIndex + Offset).tokenType == TokenTypes::TypeDef || (Lexer->getToken(ArgumentEndIndex + Offset).tokenType == TokenTypes::Identifier && SemanticTypeMap[Lexer->getToken(ArgumentEndIndex + Offset).tokenValue].Size > 0)){
-                                    // Type
-                                    std::string Type = Lexer->getToken(ArgumentEndIndex + Offset).tokenValue;
-
-                                    // Identifier
-                                    std::string ID = Lexer->getToken(ArgumentEndIndex + 1 + Offset).tokenValue;
-
-                                    // Default Value
-                                    std::string InitVal = "";
-
-                                    if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::ArgumentSeparator){
-                                        Offset += 3;
-                                    }
-                                    else if(Lexer->getToken(ArgumentEndIndex + Offset).tokenType != TokenTypes::ArgumentEnd){
-                                        if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenValue == std::string("=")){
-                                            if(Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenType == TokenTypes::Operator && Lexer->getToken(ArgumentEndIndex + 2 + Offset).tokenValue == std::string("=")){
-                                                // Check for Literal
-                                                if(Lexer->getToken(ArgumentEndIndex + 3 + Offset).tokenType == TokenTypes::Literal){
-                                                    InitVal = Lexer->getToken(ArgumentEndIndex + 3 + Offset).tokenValue;
-
-                                                    if(Lexer->getToken(ArgumentEndIndex + 4 + Offset).tokenType != TokenTypes::ArgumentEnd && Lexer->getToken(ArgumentEndIndex + 4 + Offset).tokenType != TokenTypes::ArgumentSeparator){
-                                                        std::cerr << "Error: Expected ')' at line " << Lexer->getToken(ArgumentEndIndex + 4 + Offset).fileLine << std::endl;
-                                                        return;
-                                                    }
-
-                                                    // Offset Correction
-                                                    Offset += 2;
-                                                }
-                                                else{
-                                                    // Custom Initialiser TBD // TODO
-                                                    std::cerr << "Error: Expected Literal at line " << Lexer->getToken(ArgumentEndIndex + 3 + Offset).fileLine << std::endl;
-                                                }
-                                            }
-                                        }
-                                        Offset += 2;
-                                    }
-
-                                    // Load to Parameter Map
-                                    Parameters.push_back({Type, ID, InitVal});
-                                }
-                                if(Lexer->getToken(ArgumentEndIndex+Offset).tokenType != TokenTypes::ArgumentEnd){
-                                    std::cerr << "Error: Expected ')' or Non-Type parameter present at line " << Lexer->getToken(i+3).fileLine << std::endl;
-                                    return;
-                                }
-
-                                ArgumentEndIndex += Offset;
-                            }
-
-                            // Load Block
-                            if(Lexer->getToken(ArgumentEndIndex+1).tokenType == TokenTypes::BlockStart){
-                                // Check for block end
-                                int blockStart = ArgumentEndIndex+1;
-                                int blockEnd = -1;
-                                int blockDepth = 0;
-                                for(int j = blockStart + 1; j < Lexer->Tokens().size(); j++){
-                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockStart){
-                                        Depth++;
-                                    }
-                                    if(Lexer->getToken(j).tokenType == TokenTypes::BlockEnd && Depth-- == 0){
-                                        blockEnd = j;
-                                        break;
-                                    }
-                                    else{
-                                        blockDepth++;
-                                    }
-                                }
-
-                                Depth = 0;
-
-                                // Non-Ended
-                                if(blockEnd == -1){
-                                    std::cerr << "Error: " << Name << " Missing Ending '}'" << std::endl;
-                                    return;
-                                }
-
-                                if(blockEnd != -1){
-                                    // Create FunctionDeclaration
-                                    SemanticFunctionDeclaration funcDef = {
-                                        Name,
-                                        ReturnType,
-                                        Parameters,
-                                        LexerScope->LocalScope,
-                                        false,
-                                        Lexer,
-                                        blockStart,
-                                        blockEnd,
-                                        i,
-                                        blockEnd
-                                    };
-
-                                    // Add to FunctionMap
-                                    SemanticFunctionMap[Name] = funcDef;
-                                }
-                            }
-                            else{
-                                std::cerr << "Error: Expected '{' at line " << Lexer->getToken(ArgumentEndIndex+1).fileLine<< std::endl;
-                                return;
-                            }
-                        }
-                        else{
-                            // Could be a typedef so ignore
-                        }
-                    }
-                    else{
-                        std::cerr << "Error: Expected Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
-                        continue;
-                    }
-                }
-
+            // See MacroType
+            if(Lexar->getToken(i).tokenType != TokenTypes::MacroStatement){
+                std::cerr <<  File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Non-Macro Type encountered on line " << std::endl;
+                return;
             }
-        }
-    }
-
-    // Load Types to Scopes
-    {
-        for(auto& Lexer : AnalysisData){
-            // Load Scope
-            Scope* LexerScope = SemanticLexerScopeMap[Lexer];
-
-            for(auto& p : SemanticTypeMap){
-                if(p.second.Scope == LexerScope->LocalScope){
-                    // Found scope its a part of
-
-                    // Start building type variable
-                    SemTypeDef* type = new SemTypeDef();
-                    type->Identifier = p.first;
-                    type->Size = p.second.Size;
-                    type->TypeID = p.second.TypeID;
-                    type->ParentScope = LexerScope->LocalScope; // TODO Check if defined within function
-                    type->LocalScope = NextScope++;
-                    type->ScopePosition = LexerScope->NextScopePosition++;
-                    type->Parent = LexerScope;
-                    type->TokenIndex = p.second.TokenIndexOfBlockStart;
-
-                    // Load to scope map
-                    SemanticScopeMap[type->LocalScope] = type;
-
-                    // Load functions // TODO
-
-                    // Load attributes
-                    for(auto& at : p.second.Attributes){
-                        // Start building variable
-                        Variable* var = new Variable();
-                        var->Identifier = at.Name;
-                        var->TypeID = SemanticTypeMap[at.Type].TypeID;
-                        var->InitValue = at.Value;
-                        // var->Type = SemanticTypes::SemanticTypeVariable;
-                        var->ParentScope = type->LocalScope;
-                        var->LocalScope = type->LocalScope;
-                        var->ScopePosition = type->NextScopePosition++;
-                        var->Parent = type;
-                        var->TokenIndex = p.second.TokenIndexOfBlockStart;
-
-                        type->Attributes.push_back(var);
-                    }
-
-                    // Load to Scope
-                    LexerScope->Block.push_back(type);
+            if(Lexar->getToken(i).tokenValue == "include"){
+                i++; // "include"
+                // TODO: Search Include Directories (if non-literal)
+                if(Lexar->getToken(i).tokenType != TokenTypes::Literal){
+                    std::cerr <<  File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Non-Literal include not supported at line " << std::endl;
+                    return;
                 }
-            }
-        }
-    }
-
-    // Load Scope Based Global-Variables
-    {
-        for(auto& Lexer : AnalysisData){
-            // Load Scope
-            Scope* LexerScope = SemanticLexerScopeMap[Lexer];
-
-            int TokenCount = Lexer->Tokens().size();
-            for(int i = 0; i < TokenCount; i++){
-                // Check we are not in any structs or functions using typeMap and functionMap to see what blocks are not-accessable
-                bool inFunction = false;
-                for(auto& fp : SemanticFunctionMap){
-                    if(fp.second.Builtin) continue;
-                    if(i >= fp.second.BlockStart && i <= fp.second.BlockEnd){
-                        inFunction = true;
-                        break;
-                    }
-                }
-                if(inFunction) continue;
-
-                bool inStruct = false;
-                for(auto& tp : SemanticTypeMap){
-                    if(i >= tp.second.BlockStart && i <= tp.second.BlockEnd){
-                        inStruct = true;
-                        break;
-                    }
-                }
-                if(inStruct) continue;
-
-                if(Lexer->getToken(i).tokenType == TokenTypes::TypeDef || (Lexer->getToken(i).tokenType == TokenTypes::Identifier && SemanticTypeMap[Lexer->getToken(i).tokenValue].Size > 0)){
-                    if(Lexer->getToken(i+1).tokenType != TokenTypes::Identifier){
-                        std::cerr << "Error: Expected Identifier at line " << Lexer->getToken(i+1).fileLine << std::endl;
+                else{
+                    std::string Literal = Lexar->getToken(i).tokenValue;
+                    if (Literal[0] != '\"' || Literal[Literal.size() - 1] != '\"'){
+                        std::cerr <<  File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Literal include not of type string on line " << std::endl;
                         return;
                     }
 
-                    std::string InitVal = "";
+                    // Extracted include file (Shoudl be relative to current file)
+                    Literal = Literal.substr(1, Literal.size() - 2);
 
-                    if(Lexer->getToken(i+2).tokenType != TokenTypes::LineEnd){ // Unless Value!! // TODO
-                        if(Lexer->getToken(i+2).tokenType == TokenTypes::Operator && Lexer->getToken(i+2).tokenValue == std::string("=")){
-                            if(Lexer->getToken(i+3).tokenType == TokenTypes::Literal){
-                                InitVal = Lexer->getToken(i+3).tokenValue;
-                                if(Lexer->getToken(i+4).tokenType != TokenTypes::LineEnd){
-                                    std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+4).fileLine << std::endl;
-                                    return;
-                                }
-                            }
-                            else{
-                                std::cerr << "Error: Expected Literal at line " << Lexer->getToken(i+3).fileLine << std::endl;
-                                return;
-                            }
-                        }
-                        else{
-                            std::cerr << "Error: Expected ';' at line " << Lexer->getToken(i+2).fileLine << std::endl;
-                            return;
-                        }
-                    }
-                    
-                    // Start building variable
-                    Variable* var = new Variable();
-                    var->Identifier = Lexer->getToken(i+1).tokenValue;
-                    var->TypeID = SemanticTypeMap[Lexer->getToken(i).tokenValue].TypeID;
-                    var->InitValue = InitVal;
-                    // var->Type = SemanticTypes::SemanticTypeVariable;
-                    var->ParentScope = LexerScope->LocalScope;
-                    var->LocalScope = LexerScope->LocalScope;
-                    var->ScopePosition = LexerScope->NextScopePosition++;
-                    var->Parent = LexerScope;
-                    var->TokenIndex = i;
+                    // Combine to create new path of include
+                    std::string RelativeDoc = File->AssociatedFile.substr(0, std::min(File->AssociatedFile.find_last_of('\\'), File->AssociatedFile.find_last_of('/')) + 1) + Literal;
 
-                    LexerScope->Block.push_back(var);
+                    // TODO: Ensure that it tokenised before trying to "pre-load" it
+                    // TODO: Create a "pre-tokenised" headers data type to be able to pull from if it is not part of AnalysisData
+
+                    // TODO Actually load it
+                    File->Associations.push_back(RelativeDoc);
                 }
             }
         }
-    }
 
-    // Load functions
-    {
-        // TODO Fix embeded functions so that they dont get parsed as global functions
-        for(auto& function : SemanticFunctionMap){
-            // Is the function builtin
-            if(function.second.Builtin){
-                continue;
-            }
+        // Standard TypeDefs will be global so no need to append them
 
-            // Load Scope
-            Scope* LexerScope = SemanticLexerScopeMap[function.second.Lexer];
-
-            // TODO Functions within functions
-
-            // Start building function variable
-            Function* func = new Function();
-            func->Identifier = function.first;
-            func->ReturnTypeID = SemanticTypeMap[function.second.ReturnType].TypeID;
-            func->ParentScope = LexerScope->LocalScope; // TODO : May be type not main scope
-            func->LocalScope = NextScope++;
-            func->ScopePosition = LexerScope->NextScopePosition++;
-            func->Parent = LexerScope;
-            func->TokenIndex = function.second.TokenIndexOfBlockStart;
-
-            // Load to scope map
-            SemanticScopeMap[func->LocalScope] = func;
-
-            // Save current function for context
-            Semantic__CurrentFunction = func;
-
-            // Load parameters
-            for(auto& p : function.second.Parameters){
-                // Start building variable
-                Variable* var = new Variable();
-                var->Identifier = p.Name;
-                var->TypeID = SemanticTypeMap[p.Type].TypeID;
-                // var->Type = SemanticTypes::SemanticTypeVariable;
-                var->ParentScope = func->LocalScope;
-                var->LocalScope = func->LocalScope;
-                var->ScopePosition = func->NextScopePosition++;
-                var->Parent = func;
-                var->InitValue = p.Value;
-                var->TokenIndex = function.second.TokenIndexOfBlockStart;
-
-                func->Parameters.push_back(var);
-            }
-
-            // Load block data
-            for(int i = function.second.TokenIndexOfBlockStart + 1; i < function.second.TokenIndexOfBlockEnd; i++){
-                SemanticVariable* Result = Evaluate(func, &func->Block, function.second.Lexer, &i, func);
-                if(!Result){
-                    std::cerr << "Error: Invalid Syntax at line " << function.second.Lexer->getToken(i).fileLine << std::endl;
-                    return;
-                }
-            }
-
-            // Load to scope
-            LexerScope->Block.push_back(func);
+        // Load all typdef (Recursively)
+        if(Classifiers::FindTypeDeclarations(File)){
+            return;
         }
+
+        // Load functions
+        if(Classifiers::FindFunctions(File)){
+            return;
+        }
+
+        Analysed.push_back(Lexar);
+        Interpretations.push_back(File);
     }
 
-    // Load root scope
-    this->RootScope = rootScope;
+    // Should be fully successfull
+    this->LoadedFiles = Interpretations;
 }
-
-// SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
-// {
-//     this->AnalysisData = AnalysisData;
-//     this->RootScope = nullptr; // If remains null, error encountered
-
-//     // Create root scope
-//     Scope* rootScope = new Scope();
-//     rootScope->LocalScope = 0;
-//     rootScope->ParentScope = -1;
-//     rootScope->ScopePosition = 0;
-//     rootScope->Parent = nullptr;
-//     rootScope->Block = {};
-//     rootScope->TokenIndex = 0;
-    
-//     SemanticScopeMap[0] = rootScope; // Setup this as the root of all processing
-
-//     // 
-
-//     this->RootScope = rootScope;
-// }

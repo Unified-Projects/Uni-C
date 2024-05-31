@@ -74,7 +74,7 @@ namespace Parsing
                 std::string Identifier = "";
                 std::string Initialiser = "";
             };
-            std::vector<FunctionDefinitionParameter> Parameters = {};
+            std::vector<FunctionDefinitionParameter*> Parameters = {};
             bool IsBuiltin = false;
             std::string Namespace = "";
             std::string Symbol = "";
@@ -107,6 +107,52 @@ namespace Parsing
             int EndToken = -1;
         };
 
+        struct SemanticInstance{
+            std::string Namespace = "";
+            int TokenIndex = 0;
+            int TokenSize = 0;
+            
+            virtual int GetType() {return -1;}
+        };
+
+        struct SemanticStatment{
+            enum StatementType{
+                NULL_STATMENT,
+                RETURN_STATEMENT,
+                STATIC_STATEMENT, // TODO HANDLE CORRECTLY
+                CONST_STATEMENT // TODO HANDLE CORRECTLY
+            } StateType = StatementType::NULL_STATMENT;
+
+            SemanticInstance* Block = nullptr; // Does not need to be filled
+
+            SemanticInstance* ParameterCondition = nullptr;
+            SemanticInstance* ParameterOperation = nullptr;
+            std::vector<SemanticVariable*> ParameterVariables = {};
+
+            virtual int GetType() {return 0;}
+        };
+
+        struct SemanticOperation{
+            SemanticVariable* ResultStore = nullptr;
+
+            class SemanticOperationValue{
+                enum SemanticOperationTypes{
+                    OPERATION_VALUE,
+                    OPERATION_VARIABLE
+                };
+            };
+            std::vector<SemanticOperationValue*> Operations;
+            
+            virtual int GetType() {return 1;}
+        };
+
+        struct SemanticBlock : SemanticInstance{
+            std::vector<SemanticVariable*> Variables;
+            std::vector<SemanticInstance*> Block;
+
+            virtual int GetType() {return 2;}
+        };
+
         struct SemanticisedFile{
             // Metadata
             std::string AssociatedFile = "";
@@ -123,9 +169,6 @@ namespace Parsing
 
             // Interpreted Blocks
         };
-
-
-        // Block builders
 
 
     } // namespace SemanticVariables

@@ -36,6 +36,13 @@ std::map<int, std::string> SemanticFunctionArgs{
 //     "string"
 // };
 
+// TODO UPDATE TYPEDEF CHECK TO CHECK NAMESPACE COMPATIBILITY!!!!!!
+// The whole namespacing of types needs to work
+// If not defined in a parent but rather parent-sub like within a class accept use of Class1::Class2
+// Basically to forward track ensure we use Namespace::Namespace and ensure token allocations match!!!!!
+
+extern std::string GenerateID(); // Unique-ID Generator
+
 std::map<std::string, SemanticTypeDefDeclaration*> StandardisedTypes{
     {"int", new SemanticTypeDefDeclaration{"int", 4, false, {false, ""}, "__GLOB__"}},
     {"uint", new SemanticTypeDefDeclaration{"uint", 4, false, {false, ""}, "__GLOB__"}},
@@ -457,16 +464,103 @@ namespace Classifiers{ // Functions that are used to classify types of things li
         return 0;
     }
 
+    int FindFunctionParameters(SemanticisedFile* File, SemanticFunctionDeclaration* Func, int StartI = 0, int EndI = -1, std::string NameSpace = "__GLOB__"){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        // Start index should be first parameter!
+        for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){
+            std::string TypeDef = "";
+            std::string Identifier = "";
+            std::string InitialValue = "";
+
+            // Type
+            if(Lexar->getToken(i).tokenType == TokenTypes::TypeDef){
+                // Its a standard type
+                TypeDef = Lexar->getToken(i).tokenValue;
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        TypeDef = Lexar->getToken(i).tokenValue;
+                        break;
+                    }
+                }
+
+                if(TypeDef.size() <= 0){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type not defined " << Lexar->getToken(i).tokenValue << std::endl;
+                    return -1;
+                }
+
+                i++;
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type Expected" << std::endl;
+                return -1;
+            }
+
+            // Identifier
+            if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot use type as identifier " << Lexar->getToken(i).tokenValue << std::endl;
+                        return -1;
+                    }
+                }
+
+                Identifier = Lexar->getToken(i).tokenValue;
+
+                i++;
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier Expected" << std::endl;
+                return -1;
+            }
+
+            // Initial value?
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator && Lexar->getToken(i).tokenValue == "="){
+                // Assigning a default value
+                i++;
+                if(Lexar->getToken(i).tokenType == TokenTypes::Literal){
+                    InitialValue = Lexar->getToken(i).tokenValue;
+                    i++;
+                }
+                else{ // TODO Macros able to load here
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Value" << std::endl;
+                    return -1;
+                }
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentEnd || Lexar->getToken(i).tokenType == TokenTypes::ArgumentSeparator){
+                // No Initial Value
+                i++;
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' or ',' Expected" << std::endl;
+                return -1;
+            }
+
+            // Construct Type
+            SemanticFunctionDeclaration::FunctionDefinitionParameter* FuncParam = new SemanticFunctionDeclaration::FunctionDefinitionParameter{};
+            FuncParam->Identifier = Identifier;
+            FuncParam->Initialiser = InitialValue;
+            FuncParam->TypeDef = TypeDef;
+
+            Func->Parameters.push_back(FuncParam);
+        }
+
+        return 0;
+    }
+
     int FindFunctions(SemanticisedFile* File, int StartI = 0, int EndI = -1, std::string NameSpace = "__GLOB__"){
 
         LexicalAnalyser* Lexar = File->Lexar;
 
-        bool BuildingFunctionDef = false;
-
         // Cannot be defined in blocks other than NameSpaces, Classes/Structs and Globaly
 
         for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){
-            if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart && !BuildingFunctionDef /*Could be!*/){
+            if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
                 // Find what opens a block here
 
                 // TODO NAMESPACES
@@ -602,20 +696,19 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             }
 
             // Arguments
+            int StartArgument, ArgumentEnd = 0;
             if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentStart){
                 // Find end argument
-                int StartArgument = i;
+                StartArgument = i+1;
 
                 // Most likeley global variable
                 while(Lexar->getToken(i).tokenType != TokenTypes::ArgumentEnd && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
                     i++;
                 }
 
-                int ArgumentEnd = i;
+                ArgumentEnd = i-1;
 
                 i++;
-                
-                // TODO Argument parsing
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
                     std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' Expected" << std::endl;
@@ -641,15 +734,21 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 FuncDef->Parameters = {};
                 FuncDef->IsBuiltin = false; // TODO Lookup in a table to check (As this is where it is important)
                 FuncDef->Namespace = NameSpace;
-                FuncDef->Symbol = NameSpace + "__" + FunctionName + "__";
+                FuncDef->Symbol = NameSpace + "____FUNC____" + FunctionName + "__";
                 FuncDef->Static = Static;
                 FuncDef->Private = Private;
                 FuncDef->StartToken = FunctionStartToken;
                 FuncDef->EndToken = FunctionEndToken;
 
+                // Load Function Parameters;
+                if(FindFunctionParameters(File, FuncDef, StartArgument, ArgumentEnd, NameSpace)){
+                    return -1;
+                }
+
                 File->FunctionDefs.push_back(FuncDef);
 
                 i++;
+                continue;
             }
             else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
                 // TODO COULD DEFINE A ASSOCIATED FILE
@@ -691,7 +790,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             
             // See if it is defined
             for(auto F : File->FunctionDefs){
-                if(F->Symbol == NameSpace + "__" + FunctionName + "__"){
+                if(F->Symbol == NameSpace + "____FUNC____" + FunctionName + "__"){
                     if(F->StartToken < 0){
                         // TODO VERIFY PARAMETER COUNT AND TYPES!!!!!!!! ALONGSIDE PRIV, STATIC
 
@@ -711,14 +810,21 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             FuncDef->Identifier = FunctionName;
             FuncDef->FunctionReturn.WillReturn = (TypeDef != "void");
             FuncDef->FunctionReturn.TypeDef = TypeDef;
-            FuncDef->Parameters = {};
+            // FuncDef->Parameters = {};
             FuncDef->IsBuiltin = false; // TODO Lookup in a table to check (As this is where it is important)
             FuncDef->Namespace = NameSpace;
-            FuncDef->Symbol = NameSpace + "__" + FunctionName + "__";
+            FuncDef->Symbol = NameSpace + "____FUNC____" + FunctionName + "__";
             FuncDef->Static = Static;
             FuncDef->Private = Private;
             FuncDef->StartToken = FunctionStartToken;
             FuncDef->EndToken = FunctionEndToken;
+
+            if(FuncDef->Parameters.size() == 0){ // TODO Make sure the functions paramenters match when "redefining"
+                // Load Function Parameters
+                if(FindFunctionParameters(File, FuncDef, StartArgument, ArgumentEnd, NameSpace)){
+                    return -1;
+                }
+            }
 
             if(NameSpace.find_first_of("__CLASS__") != NameSpace.npos){
                 // Its part of a class

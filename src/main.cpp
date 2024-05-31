@@ -88,7 +88,12 @@ int main(int argc, char* argv[]){
         }
         
         // Parameters
-        // TODO
+        if(Function->Parameters.size() > 0){
+            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Parameters: " << Function->FunctionReturn.TypeDef << std::endl;
+            for(auto p : Function->Parameters){
+                std::cout << std::string(depth*IndentCount + IndentCount*2, ' ') << p->Identifier << ": t(" << p->TypeDef << ")" << ((p->Initialiser.size() > 0) ? ("t(" + p->Initialiser + ")") : "") << std::endl;
+            }
+        }
     };
 
     // Loop over each loaded file

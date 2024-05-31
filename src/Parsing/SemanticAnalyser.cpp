@@ -52,7 +52,7 @@ std::map<std::string, SemanticTypeDefDeclaration*> StandardisedTypes{
     {"string", new SemanticTypeDefDeclaration{"string", 12, false, {false, ""}, "__GLOB__"}}
 };
 std::map<SemanticTypeDefDeclaration*, SemanticObjectDefinition*> StandardObjectTypes{
-    {StandardisedTypes["string"], new SemanticObjectDefinition{"string", {new SemanticObjectDefinition::ObjectComponent{true, false, false, false, false, "ulong", "Length", "0"}, new SemanticObjectDefinition::ObjectComponent{true, false, false, false, true, "char", "Data", "0"}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
+    {StandardisedTypes["string"], new SemanticObjectDefinition{"string", {new SemanticVariable{true, false, false, false, false, "ulong", "Length", "0", "__GLOB____CLASS____string__", -1}, new SemanticVariable{true, false, false, false, true, "char", "Data", "0", "__GLOB____CLASS____string__", -1}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
 };
 
 namespace Classifiers{ // Functions that are used to classify types of things like statements and operations
@@ -137,6 +137,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             }
 
             // Type
+            int DefToken = i;
             if(Lexar->getToken(i).tokenType == TokenTypes::TypeDef){
                 // Its a standard type
                 TypeDef = Lexar->getToken(i).tokenValue;
@@ -234,7 +235,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     i++;
                 }
 
-                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && EndNeeded > 0){
                     std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
                     return -1;
                 }
@@ -246,7 +247,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             }
 
             // If we got here we can create the component
-            SemanticObjectDefinition::ObjectComponent* ObjComp = new SemanticObjectDefinition::ObjectComponent{};
+            SemanticVariable* ObjComp = new SemanticVariable{};
             ObjComp->Private = Private;
             ObjComp->Protected = Protected;
             ObjComp->Constant = Constant;
@@ -254,9 +255,12 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             ObjComp->Pointer = Pointer;
             ObjComp->TypeDef = TypeDef;
             ObjComp->Identifier = Identifier;
-            ObjComp->InitialValue = InitialValue;
+            ObjComp->Initialiser = InitialValue;
+            ObjComp->Namespace = Obj->Namespace + "__CLASS____" + Obj->TypeDefinition + "__";
+            ObjComp->DefinedToken = DefToken;
 
-            Obj->TypeDef_Identifier.push_back(ObjComp);
+            Obj->Variables.push_back(ObjComp);
+            File->Variables.push_back(ObjComp); // Also part of main file (So can be traced)
         }
 
         return 0;
@@ -418,7 +422,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     }
 
                     // Update Size of TypeDefDec
-                    for(auto C : ObjectDef->TypeDef_Identifier){
+                    for(auto C : ObjectDef->Variables){
                         // Pointer
                         if (C->Pointer){
                             TypeDefDec->DataSize += 8; // Fixed uint64_t pointer size
@@ -474,7 +478,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 for(auto c : File->ObjectDefs){
                     if (c->StartToken == i + 1){
                         // We are at the begining of this block
-                        FindFunctions(File, c->StartToken, c->EndToken, "__GLOB____CLASS____" + c->TypeDefinition + "__");
+                        FindFunctions(File, c->StartToken, c->EndToken, c->Namespace + "__CLASS____" + c->TypeDefinition + "__");
                         i += c->EndToken - c->StartToken;
                         break;
                     }
@@ -729,6 +733,207 @@ namespace Classifiers{ // Functions that are used to classify types of things li
 
         return 0;
     }
+
+    int FindGlobalVariables(SemanticisedFile* File){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        for(int i = 0; i < Lexar->Tokens().size();){
+            if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                int EndNeeded = 1;
+
+                i++;
+
+                while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                        EndNeeded--;
+                    }
+                    else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                        EndNeeded++;
+                    }
+
+                    i++;
+                }
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                    i++;
+                }
+
+                continue;
+            } // Skip all blocks
+
+            // Config Values
+            bool Private = false;
+            bool Protected = false;
+            bool Constant = false;
+            bool Static = false;
+            bool Pointer = false;
+
+            std::string TypeDef = "";
+            std::string Identifier = "";
+            std::string InitialValue = "";
+
+            if(Lexar->getToken(i).tokenType == TokenTypes::Statement){
+                if(Lexar->getToken(i).tokenValue == "const"){
+                    Constant = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "static"){
+                    Static = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "protected"){
+                    Protected = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "private"){
+                    Private = true;
+                }
+                else if(Lexar->getToken(i).tokenValue == "struct" || Lexar->getToken(i).tokenValue == "class"){
+                    i+=2; // Skip struct and identifier (Rest is auto handled ^)
+                    continue;
+                }
+                else if(Lexar->getToken(i).tokenValue == "using"){
+                    i+=4;
+                    continue;
+                }
+                else{
+                    i++;
+                    continue; // Not valid
+                }
+
+                i++; // Skip it
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::Macro){
+                i += 3;
+                continue;
+            }
+
+            // Is there typedef / Identifier
+            // Type
+            int DefToken = i;
+            if(Lexar->getToken(i).tokenType == TokenTypes::TypeDef){
+                // Its a standard type
+                TypeDef = Lexar->getToken(i).tokenValue;
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        TypeDef = Lexar->getToken(i).tokenValue;
+                        break;
+                    }
+                }
+
+                if(TypeDef.size() <= 0){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type not defined " << Lexar->getToken(i).tokenValue << std::endl;
+                    return -1;
+                }
+
+                i++;
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type Expected (" << Lexar->getToken(i).tokenValue << ")" << std::endl;
+                return -1;
+            }
+
+            // See if this is a pointer
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator && Lexar->getToken(i).tokenValue == "*"){
+                // We are pointer
+                Pointer =  true;
+                i++;
+            }
+
+            // Identifier
+            if(Lexar->getToken(i).tokenType == TokenTypes::Identifier){
+                // See if we defined it yet
+                for(auto x : File->TypeDefs){
+                    if(x->Identifier == Lexar->getToken(i).tokenValue){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot use type as identifier " << Lexar->getToken(i).tokenValue << std::endl;
+                        return -1;
+                    }
+                }
+
+                Identifier = Lexar->getToken(i).tokenValue;
+
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart && Lexar->getToken(i-2).tokenType == TokenTypes::Statement){
+                continue; // Could be a subdefined struct
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier Expected (" << Lexar->getToken(i).tokenValue << ")" << std::endl;
+                return -1;
+            }
+
+            // Initial value?
+            if(Lexar->getToken(i).tokenType == TokenTypes::Operator && Lexar->getToken(i).tokenValue == "="){
+                // Assigning a default value
+                i++;
+                if(Lexar->getToken(i).tokenType == TokenTypes::Literal && Lexar->getToken(i+1).tokenType == TokenTypes::LineEnd){
+                    InitialValue = Lexar->getToken(i).tokenValue;
+                    i+=2;
+                }
+                else{ // TODO Macros able to load here
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Value" << std::endl;
+                    return -1;
+                }
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::LineEnd){
+                // No Initial Value
+                i++;
+            }
+            else if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentStart){ // Function within the struct
+                int EndNeeded = 0;
+
+                while(Lexar->getToken(i).tokenType != TokenTypes::BlockStart && Lexar->getToken(i).tokenType != TokenTypes::LineEnd){
+                    i++;
+                    if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' or ';'" << std::endl;
+                        return -1;
+                    }
+                }
+
+                EndNeeded += (Lexar->getToken(i).tokenType == TokenTypes::BlockStart);
+                i++;
+
+                while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
+                    if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
+                        EndNeeded--;
+                    }
+                    else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
+                        EndNeeded++;
+                    }
+
+                    i++;
+                }
+
+                if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && EndNeeded > 0){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    return -1;
+                }
+                continue; // Skip the function declaration
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                return -1;
+            }
+
+            // If we got here we can create the component
+            SemanticVariable* GlobVar = new SemanticVariable{};
+            GlobVar->Private = Private;
+            GlobVar->Protected = Protected;
+            GlobVar->Constant = Constant;
+            GlobVar->Static = Static;
+            GlobVar->Pointer = Pointer;
+            GlobVar->TypeDef = TypeDef;
+            GlobVar->Identifier = Identifier;
+            GlobVar->Initialiser = InitialValue;
+            GlobVar->Namespace = "__GLOB__";
+            GlobVar->DefinedToken = DefToken;
+
+            File->Variables.push_back(GlobVar); // Also part of main file (So can be traced)
+        }
+
+        return 0;
+    }
 }
 
 SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
@@ -807,6 +1012,11 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
 
         // Load functions
         if(Classifiers::FindFunctions(File)){
+            return;
+        }
+
+        // Load Global Variables
+        if(Classifiers::FindGlobalVariables(File)){
             return;
         }
 

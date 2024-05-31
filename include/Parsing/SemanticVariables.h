@@ -84,20 +84,22 @@ namespace Parsing
             int EndToken = -1;
         };
 
+        struct SemanticVariable{
+            bool Private = false;
+            bool Protected = false;
+            bool Constant = false;
+            bool Static = false;
+            bool Pointer = false;
+            std::string TypeDef = "";
+            std::string Identifier = ""; // (Need to backtrack scopes to see if we can create)
+            std::string Initialiser = ""; // TODO SUPPORT {} Initialisers for CLASSES (Verify they match typedef)
+            std::string Namespace = ""; // Basically Scope (Each __X__ acts as a back tracable scope)
+            int DefinedToken = 0;
+        };
+
         struct SemanticObjectDefinition{
             std::string TypeDefinition = "";
-            struct ObjectComponent{
-                bool Private = false;
-                bool Protected = false;
-                bool Constant = false;
-                bool Static = false;
-                bool Pointer = false;
-
-                std::string TypeDef = "";
-                std::string Identifier = "";
-                std::string InitialValue = "";
-            };
-            std::vector<ObjectComponent*> TypeDef_Identifier = {};
+            std::vector<SemanticVariable*> Variables = {}; // (Appeneded to File aswell)
             std::vector<SemanticFunctionDeclaration*> AssociatedFunctions = {};
             std::string Inhertance = "";
             std::string Namespace = "__GLOB__";
@@ -112,12 +114,19 @@ namespace Parsing
             std::vector<std::string> Associations = {};
 
             // Definitions
-            std::vector<SemanticTypeDefDeclaration*> TypeDefs; // (Will load inherited ones from included files)
-            std::vector<SemanticObjectDefinition*> ObjectDefs;
-            std::vector<SemanticFunctionDeclaration*> FunctionDefs;
+            std::vector<SemanticTypeDefDeclaration*> TypeDefs = {}; // (Will load inherited ones from included files)
+            std::vector<SemanticObjectDefinition*> ObjectDefs = {};
+            std::vector<SemanticFunctionDeclaration*> FunctionDefs = {};
+
+            // Global variables
+            std::vector<SemanticVariable*> Variables = {};
 
             // Interpreted Blocks
         };
+
+
+        // Block builders
+
 
     } // namespace SemanticVariables
     

@@ -80,7 +80,7 @@ int main(int argc, char* argv[]){
 
     // Log a function definition
     std::function<void(Parsing::SemanticVariables::SemanticFunctionDeclaration*, int)> LogFunctionDefinition = [&](Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, int depth){
-        std::cout << std::string(depth * IndentCount, ' ') << Function->Identifier << ": " << ((Function->Private) ? "P" : "") << ((Function->Static) ? "S" : "") << std::endl;
+        std::cout << std::string(depth * IndentCount, ' ') << Function->Identifier << ": " << ((Function->Private) ? "P" : "") << ((Function->Static) ? "S" : "") << ((Function->IsBuiltin) ? "(Bultin)" : "") << std::endl;
 
         // Retun
         if(Function->FunctionReturn.WillReturn){
@@ -121,10 +121,10 @@ int main(int argc, char* argv[]){
                 std::cout << std::string(IndentCount * 2, ' ') << A->TypeDefinition << "(" << A->Namespace << ")" << std::endl;
                 
                 // Components
-                if(A->TypeDef_Identifier.size() > 0){
+                if(A->Variables.size() > 0){
                     std::cout << std::string(IndentCount * 3, ' ') << "Components: " << std::endl;
-                    for(auto C : A->TypeDef_Identifier){
-                        std::cout << std::string(IndentCount * 4, ' ') << C->Identifier << ": t" << ((C->Pointer) ? "*" : "") << "(" << C->TypeDef << ")" << ((C->Private) ? "P" : "") << ((C->Protected) ? "p" : "") << ((C->Constant) ? "c" : "") << ((C->Static) ? "s" : "") << ((C->InitialValue.size() > 0) ? ("i(" + C->InitialValue + ")") : "") << std::endl;
+                    for(auto C : A->Variables){
+                        std::cout << std::string(IndentCount * 4, ' ') << C->Identifier << ": t" << ((C->Pointer) ? "*" : "") << "(" << C->TypeDef << ")" << ((C->Private) ? "P" : "") << ((C->Protected) ? "p" : "") << ((C->Constant) ? "c" : "") << ((C->Static) ? "s" : "") << ((C->Initialiser.size() > 0) ? ("i(" + C->Initialiser + ")") : "") << std::endl;
                     }
                 }
 
@@ -145,6 +145,20 @@ int main(int argc, char* argv[]){
                 if(A->Namespace.find("__CLASS__") == A->Namespace.npos){
                     // Not listed as part of classes
                     LogFunctionDefinition(A, 2);
+                }
+            }
+        }
+
+        // Global Variables
+        if(Interpretation->Variables.size() > 0){
+            bool Global = false;
+            for(auto A : Interpretation->Variables){
+                if(A->Namespace == "__GLOB__"){
+                    if(!Global){
+                        Global = true;
+                        std::cout << std::string(IndentCount, ' ') << "Global Variables: " << std::endl;
+                        std::cout << std::string(IndentCount * 2, ' ') << A->Identifier << ": t" << ((A->Pointer) ? "*" : "") << "(" << A->TypeDef << ")" << ((A->Private) ? "P" : "") << ((A->Protected) ? "p" : "") << ((A->Constant) ? "c" : "") << ((A->Static) ? "s" : "") << ((A->Initialiser.size() > 0) ? ("i(" + A->Initialiser + ")") : "") << std::endl;
+                    }
                 }
             }
         }

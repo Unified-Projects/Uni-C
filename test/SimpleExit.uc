@@ -13,6 +13,10 @@ int FuncTest(int x){
 struct Type2{
     struct Type1{
         int X = 2;
+
+        long ClassFunc(){
+            return 1;
+        }
     };
 
     int ClassFunc(){

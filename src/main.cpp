@@ -78,6 +78,44 @@ int main(int argc, char* argv[]){
 
     const int IndentCount = 3;
 
+    std::function<void(Parsing::SemanticVariables::SemanticBlock*, int)> LogBlock = [&](Parsing::SemanticVariables::SemanticBlock* Block, int depth){
+        std::cout << std::string(depth * IndentCount, ' ') << "Block: " << std::endl;
+        
+        // Variables
+        if(Block->Variables.size() > 0){
+            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Variables: " << std::endl;
+            for(auto p : Block->Variables){
+                std::cout << std::string(depth*IndentCount + IndentCount*2, ' ') << p->Identifier << ": t(" << p->TypeDef << ")" << ((p->Initialiser.size() > 0) ? ("t(" + p->Initialiser + ")") : "") << std::endl;
+            }
+        }
+
+        // Block
+        int IdentPlus = 0;
+        if(Block->Variables.size() > 0){
+            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Block: " << std::endl;
+            IdentPlus++;
+        }
+        
+        for(auto x : Block->Block){
+            if(x->GetType() == 0){
+                // Statement
+                auto SemStat = (Parsing::SemanticVariables::SemanticStatment*)x;
+                std::cout << std::string((depth + 1 + IdentPlus)*(IndentCount), ' ') << "Statement: t(" << SemStat->StateType << ") TODO PARAMS" << std::endl;
+
+                if(SemStat->Block){
+                    LogBlock((Parsing::SemanticVariables::SemanticBlock*)x, depth+2 + IdentPlus);
+                }
+            }
+            else if(x->GetType() == 1){
+                // Operation
+            }
+            else if(x->GetType() == 2){
+                // Block
+                LogBlock((Parsing::SemanticVariables::SemanticBlock*)x, depth+1 + IdentPlus);
+            }
+        }
+    };
+
     // Log a function definition
     std::function<void(Parsing::SemanticVariables::SemanticFunctionDeclaration*, int)> LogFunctionDefinition = [&](Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, int depth){
         std::cout << std::string(depth * IndentCount, ' ') << Function->Identifier << ": " << ((Function->Private) ? "P" : "") << ((Function->Static) ? "S" : "") << ((Function->IsBuiltin) ? "(Bultin)" : "") << std::endl;
@@ -89,15 +127,22 @@ int main(int argc, char* argv[]){
         
         // Parameters
         if(Function->Parameters.size() > 0){
-            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Parameters: " << Function->FunctionReturn.TypeDef << std::endl;
+            std::cout << std::string(depth*IndentCount + IndentCount, ' ') << "Parameters: " << std::endl;
             for(auto p : Function->Parameters){
                 std::cout << std::string(depth*IndentCount + IndentCount*2, ' ') << p->Identifier << ": t(" << p->TypeDef << ")" << ((p->Initialiser.size() > 0) ? ("t(" + p->Initialiser + ")") : "") << std::endl;
             }
         }
+
+        // Block
+        if(Function->Block){
+            LogBlock(Function->Block, depth+1);
+        }
     };
 
     // Loop over each loaded file
+    if(CompilerInformation::DebugAll())
     std::cout << "-------- Semantic Analysis --------" << std::endl;
+    if(CompilerInformation::DebugAll())
     for(auto Interpretation : semanticAnalyser->GetFiles()){
         // std::cout << std::string(IndentCount, ' ') <<  << std::endl;
 
@@ -169,54 +214,38 @@ int main(int argc, char* argv[]){
         }
     }
 
-    // if(semanticAnalyser->getRootScope() == nullptr){
-    //     std::cerr << "Failed to compile!" << std::endl;
-    //     return -1;
-    // }
-    // if(CompilerInformation::DebugAll()){
-    //     std::cout << "-------- Semantic Analysis --------" << std::endl;
-    //     // std::cout << "Types: " << std::endl;
-    //     // for(auto& type : SemanticTypeMap){
-    //     //     if(type.second.Scope < 0) continue;
-    //     //     std::cout << "  Name: " << type.first << " Scope: " << type.second.Scope << " Size: " << type.second.Size << std::endl;
-    //     // }
-    //     // std::cout << "Functions: " << std::endl;
-    //     // for(auto& func : SemanticFunctionMap){
-    //     //     if(func.second.Scope < 0) continue;
-    //     //     std::cout << "  Name: " << func.first << " Scope: " << func.second.Scope << std::endl;
-    //     // }
+    if(semanticAnalyser->GetFiles().size() <= 0){
+        std::cerr << "Failed to analyse!" << std::endl;
+        return -1;
+    }
 
-    //     std::cout << "Tree: " << std::endl;
-
-    //     // Tree traverse block chain from root scope printing out types
-    //     std::function<void(Parsing::SemanticVariables::SemanticVariable*, int)> traverse = [&](Parsing::SemanticVariables::SemanticVariable* scope, int depth){
-            
-    //     };
-    //     traverse(semanticAnalyser->getRootScope(), 0);
-    //     std::cout << "------ End Semantic Analysis ------" << std::endl;
-    // }
+    if(CompilerInformation::DebugAll())
+        std::cout << "------ End Semantic Analysis ------" << std::endl;
 
     if(CompilerInformation::DebugAll()){
         std::cout << "Begining Assembly Generation..." << std::endl;
     }
 
-    return 0;
+    // Start Generation
+    Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
+    std::string assembly = generator->Generate(semanticAnalyser);
 
-    // // Start Generation
-    // Exporting::AssemblyGenerator* generator = new Exporting::AssemblyGenerator();
-    // std::string assembly = generator->Generate(semanticAnalyser->getRootScope());
+    if(assembly.size() <= 0){
+        std::cerr << "Failed to generate assembly!" << std::endl;
+        return -1;
+    }
 
-    // if(CompilerInformation::DebugAll())
-    //     std::cout << "Generated Assembly -> Exporting to " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
+    if(CompilerInformation::DebugAll())
+        std::cout << "Generated Assembly -> Exporting to " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
 
-    // // Write to file
-    // {
-    //     InputStream::FileHandler output_file = InputStream::FileHandler(InputStream::__COMPILATION_CONFIGURATION->OutputFile());
-    //     output_file = assembly;
-    //     output_file.Close();
-    // }
+    // Write to file
+    {
+        InputStream::FileHandler output_file = InputStream::FileHandler(InputStream::__COMPILATION_CONFIGURATION->OutputFile());
+        output_file = assembly;
+        output_file.Close();
+    }
 
-    // std::cout << "Compilation Successful! Output: " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
+    std::cout << "Compilation Successful! Output: " << InputStream::__COMPILATION_CONFIGURATION->OutputFile() << std::endl;
 
     return 0;
 }

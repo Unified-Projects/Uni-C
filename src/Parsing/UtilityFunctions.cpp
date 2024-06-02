@@ -9,12 +9,17 @@ std::string generateUUID() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_int_distribution<uint32_t> dis(0, 15);
+    static std::uniform_int_distribution<uint32_t> disa(11, 37);
 
-    const char *v = "0123456789abcdef";
+    const char *v = "0123456789abcdefeghijklmnopqrstuvwxyz";
     const size_t len = 32;
     std::string uuid(len, ' ');
 
     for (size_t i = 0; i < len; ++i) {
+        if(i == 0){
+            uuid[i] = v[disa(gen)]; // First character must be ascii
+            continue;
+        }
         uuid[i] = v[dis(gen)];
     }
     return uuid;

@@ -8,6 +8,7 @@ using namespace Parsing::SemanticVariables;
 
 #include <iostream> // Used for error logging
 
+#ifdef WIN32
 std::map<int, std::string> SemanticFunctionArgs{
     // ArgNumber : register
     {0, "rdi"},
@@ -18,6 +19,9 @@ std::map<int, std::string> SemanticFunctionArgs{
     {5, "r9"},
     // TODO Continue into stack....
 };
+#else
+#error "OTHER OS NOT SUPPORTED"
+#endif
 
 //TODO Finish all
 // std::vector<std::string> StandardTypeDefs = {
@@ -62,6 +66,26 @@ std::map<SemanticTypeDefDeclaration*, SemanticObjectDefinition*> StandardObjectT
     {StandardisedTypes["string"], new SemanticObjectDefinition{"string", {new SemanticVariable{true, false, false, false, false, "ulong", "Length", "0", "__GLOB____CLASS____string__", -1}, new SemanticVariable{true, false, false, false, true, "char", "Data", "0", "__GLOB____CLASS____string__", -1}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
 };
 
+std::map<std::string, std::vector<std::string>> TypeConversionCompatibilityMap{ // Todo Match operations that are defined to allow custom type conversions too
+    {"int", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"uint", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"short", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"ushort", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"long", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"ulong", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"", {}},
+    {"", {}},
+    {"char", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"uchar", {"int", "uint", "short", "ushort", "long", "ulong", "char", "uchar"}},
+    {"", {}},
+    {"", {}},
+    {"string", {}}
+};
+
+std::map<std::string, SemanticOperation::SemanticOperationValue::SemanticOperationTypes> OperationTypeMap{
+    {"+", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD},
+};
+
 namespace Classifiers{ // Functions that are used to classify types of things like statements and operations
     int FindObjectVariableDefinitions(SemanticisedFile* File, SemanticObjectDefinition* Obj, int StartI, int EndI, std::string NameSpace){
         LexicalAnalyser* Lexar = File->Lexar;
@@ -82,7 +106,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     i++;
                 }
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
             }
@@ -167,7 +191,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 i++;
             }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Type Expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                 return -1;
             }
 
@@ -196,7 +220,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 continue; // Could be a subdefined struct
             }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Identifier Expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                 return -1;
             }
 
@@ -209,7 +233,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     i+=2;
                 }
                 else{ // TODO Macros able to load here
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Value" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Valuebut got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
             }
@@ -223,7 +247,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 while(Lexar->getToken(i).tokenType != TokenTypes::BlockStart && Lexar->getToken(i).tokenType != TokenTypes::LineEnd){
                     i++;
                     if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' or ';'" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' or ';' but got " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
                 }
@@ -243,13 +267,13 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 }
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && EndNeeded > 0){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
                 continue; // Skip the function declaration
             }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                 return -1;
             }
 
@@ -341,7 +365,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     }
 
                     if(Lexar->getToken(i++).tokenType != TokenTypes::LineEnd){
-                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << NewIdentifier.fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
                     continue;
@@ -372,7 +396,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
 
                     // Interpret the block size
                     if(Lexar->getToken(i).tokenType != TokenTypes::BlockStart){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' expected" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
                     i++; // '{'
@@ -392,14 +416,14 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     }
 
                     if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
                     
                     int TokenEnd = i - 2;
 
                     if(Lexar->getToken(i).tokenType != TokenTypes::LineEnd){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                         return -1;
                     }
                     i++;
@@ -467,6 +491,8 @@ namespace Classifiers{ // Functions that are used to classify types of things li
     int FindFunctionParameters(SemanticisedFile* File, SemanticFunctionDeclaration* Func, int StartI = 0, int EndI = -1, std::string NameSpace = "__GLOB__"){
         LexicalAnalyser* Lexar = File->Lexar;
 
+        bool StartedInitialValues = false;
+
         // Start index should be first parameter!
         for(int i = StartI; i < Lexar->Tokens().size() && (i < EndI || EndI == -1);){
             std::string TypeDef = "";
@@ -531,13 +557,19 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Literal Initial Value" << std::endl;
                     return -1;
                 }
+
+                StartedInitialValues = true;
             }
-            else if(Lexar->getToken(i).tokenType == TokenTypes::ArgumentEnd || Lexar->getToken(i).tokenType == TokenTypes::ArgumentSeparator){
+            else if((Lexar->getToken(i).tokenType == TokenTypes::ArgumentEnd || Lexar->getToken(i).tokenType == TokenTypes::ArgumentSeparator) && !StartedInitialValues){
                 // No Initial Value
                 i++;
             }
+            else if(StartedInitialValues){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected Initial Value but got " << Lexar->getToken(i).tokenValue << std::endl;
+                return -1;
+            }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' or ',' Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' or ',' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                 return -1;
             }
 
@@ -655,7 +687,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 }
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
 
@@ -687,7 +719,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 }
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
 
@@ -711,7 +743,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 i++;
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' Expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "')' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
             }
@@ -721,7 +753,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 // See if it is defined
                 for(auto F : File->FunctionDefs){
                     if(F->Symbol == NameSpace + "__" + FunctionName + "__"){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << F->Symbol << "Already defined" << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << F->Symbol << " is already defined" << std::endl;
                         return -1;
                     }
                 }
@@ -739,9 +771,14 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 FuncDef->Private = Private;
                 FuncDef->StartToken = FunctionStartToken;
                 FuncDef->EndToken = FunctionEndToken;
+                FuncDef->Block = nullptr;
 
                 // Load Function Parameters;
                 if(FindFunctionParameters(File, FuncDef, StartArgument, ArgumentEnd, NameSpace)){
+                    return -1;
+                }
+                if(FuncDef->Parameters.size() > 6){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << FuncDef->Identifier << " has too many parameters" << std::endl;
                     return -1;
                 }
 
@@ -753,11 +790,11 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             else if(Lexar->getToken(i).tokenType == TokenTypes::BlockStart){
                 // TODO COULD DEFINE A ASSOCIATED FILE
 
+                i++;
+
                 // Find end Block
                 int TokenStart = i;
                 int EndNeeded = 1;
-
-                i++;
 
                 while(EndNeeded != 0 && Lexar->getToken(i).tokenType != TokenTypes::NullToken){
                     if(Lexar->getToken(i).tokenType == TokenTypes::BlockEnd){
@@ -771,7 +808,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 }
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && Lexar->getToken(i-1).tokenType != TokenTypes::BlockEnd){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
                 
@@ -781,7 +818,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 FunctionEndToken = TokenEnd;
             }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' or ';' Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'{' or ';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
             }
 
@@ -813,15 +850,20 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             // FuncDef->Parameters = {};
             FuncDef->IsBuiltin = false; // TODO Lookup in a table to check (As this is where it is important)
             FuncDef->Namespace = NameSpace;
-            FuncDef->Symbol = NameSpace + "____FUNC____" + FunctionName + "__";
+            FuncDef->Symbol = NameSpace + "___FUNC___" + FunctionName + "__";
             FuncDef->Static = Static;
             FuncDef->Private = Private;
             FuncDef->StartToken = FunctionStartToken;
             FuncDef->EndToken = FunctionEndToken;
+            FuncDef->Block = nullptr;
 
             if(FuncDef->Parameters.size() == 0){ // TODO Make sure the functions paramenters match when "redefining"
                 // Load Function Parameters
                 if(FindFunctionParameters(File, FuncDef, StartArgument, ArgumentEnd, NameSpace)){
+                    return -1;
+                }
+                if(FuncDef->Parameters.size() > 6){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << FuncDef->Identifier << " has too many parameters" << std::endl;
                     return -1;
                 }
             }
@@ -1012,13 +1054,13 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 }
 
                 if(Lexar->getToken(i).tokenType == TokenTypes::NullToken && EndNeeded > 0){
-                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected" << std::endl;
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "'}' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                     return -1;
                 }
                 continue; // Skip the function declaration
             }
             else{
-                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' Expected" << std::endl;
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(i).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(i).tokenValue << std::endl;
                 return -1;
             }
 
@@ -1040,6 +1082,425 @@ namespace Classifiers{ // Functions that are used to classify types of things li
 
         return 0;
     }
+
+    int InterpretVariableDefinition(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, int& TokenIndex){
+        return -1;
+    }
+
+    int InterpretOpration(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, SemanticOperation*& RetPoint, int& TokenIndex, bool function = false){
+        // Ensure typedef consistancy
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        int StartI = TokenIndex;
+        
+        SemanticOperation* Operation = new SemanticOperation{};
+        Operation->Namespace = ParentBlock->Namespace;
+
+        std::stack<SemanticOperation::SemanticOperationValue*> Operations = {};
+        int ValuesLoaded = 0;
+        
+        while((Lexar->getToken(TokenIndex).tokenType != TokenTypes::LineEnd && !function) || (Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentEnd && Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentSeparator && function)){
+            SemanticOperation::SemanticOperationValue* Oper = new SemanticOperation::SemanticOperationValue{};
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Literal){
+                Oper->Value = Lexar->getToken(TokenIndex).tokenValue;
+                Oper->Type = SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VALUE;
+                // TODO Custom Intialisers
+                if(Oper->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == Oper->Value.front() || Oper->Value.find('-') == std::string::npos) && std::count(Oper->Value.begin(), Oper->Value.end(), '-') <= 1){    
+                    long Value = std::atol(Oper->Value.data());
+                    if(Value <= 0xFF / 2){
+                        Oper->TypeDef = "char";
+                    }
+                    else if (Value <= 0xFFFF / 2){
+                        Oper->TypeDef = "short";
+                    }
+                    else if(Value <= 0xFFFFFFFF / 2){
+                        Oper->TypeDef = "int";
+                    }
+                    else{
+                        Oper->TypeDef = "long";
+                    }
+                }
+                else if(Oper->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == Oper->Value.front() || Oper->Value.find('-') == std::string::npos) && std::count(Oper->Value.begin(), Oper->Value.end(), '-') <= 1 && std::count(Oper->Value.begin(), Oper->Value.end(), '.') <= 1){
+                    Oper->TypeDef = "double";
+                }
+                else if(Oper->Value == std::string("true") || Oper->Value == std::string("false")){
+                    Oper->TypeDef = "bool";
+                }
+                else if(Oper->Value[0] == '\"' && Oper->Value.ends_with("\"")){
+                    Oper->TypeDef = "string";
+                }
+                else if(Oper->Value[0] == '\'' && Oper->Value.ends_with("'")){
+                    Oper->TypeDef = "char";
+                }
+                else{
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Encountered Invalid Literal" << std::endl;
+                    return -1;
+                }
+
+                Operation->Operations.push_back(Oper);
+                ValuesLoaded++;
+            }
+            else if (Lexar->getToken(TokenIndex).tokenType == TokenTypes::Operator){
+                auto OperationType = OperationTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+
+                while(Operations.size() > 0 && Operations.top()->Type > OperationType){
+                    // More preferable
+                    Operation->Operations.push_back(Operations.top());
+                    Operations.pop();
+                    ValuesLoaded-=1;
+                }
+
+                // Load current operation to stack
+                Oper->Type = OperationType;
+                Operations.push(Oper);
+            }
+            else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Identifier){
+                // Variable // (Check)
+                // TODO Variables in operations
+
+                // Function
+                if(Lexar->getToken(TokenIndex+1).tokenType == TokenTypes::ArgumentStart){
+                    // Check function is defined
+                    for(auto Functions : File->FunctionDefs){
+                        // TODO Check NAMEPACE TRACKING
+                        if(Lexar->getToken(TokenIndex).tokenValue == Functions->Identifier){
+                            // Load the rest
+                            Oper->Type = SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_FUNCTION;
+
+                            if(!Functions->FunctionReturn.WillReturn){
+                                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Function does not return a value (" << Functions->Identifier << ")" << std::endl;
+                                return -1;
+                            }
+
+                            TokenIndex+=2;
+
+                            while(Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentEnd){
+                                if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::LineEnd || TokenIndex >= ParentBlock->TokenIndex + ParentBlock->TokenSize){
+                                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Function operator arguments invalid" << std::endl;
+                                    return -1;
+                                }
+
+                                SemanticOperation* ParamOper =  nullptr;
+
+                                if(InterpretOpration(File, Function, ParentBlock, ParamOper, TokenIndex, true)){
+                                    return -1;
+                                }
+
+                                // Registers
+                                ParamOper->ResultStore = SemanticFunctionArgs[Oper->Values.size()];
+                                Oper->Values.push_back(ParamOper);
+                            }
+
+                            int RequiredParams = 0;
+                            int MaxParams = 0;
+                            for(auto p : Functions->Parameters){
+                                if(p->Initialiser == ""){
+                                    RequiredParams++;
+                                }
+                                MaxParams++;
+                            }
+                            if(Oper->Values.size() < RequiredParams || Oper->Value.size() > MaxParams){
+                                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Invalid parameter count" << std::endl;
+                                return -1;
+                            }
+
+                            for(int p = 0; p < Functions->Parameters.size(); p++){
+                                if(Functions->Parameters[p]->Initialiser == ""){
+                                    bool Valid = false;
+                                    for(auto x : TypeConversionCompatibilityMap[Oper->Values[p]->EvaluatedTypedef]){
+                                        if(x == Functions->Parameters[p]->TypeDef){
+                                            // We can convert
+                                            Valid = true;
+                                            break;
+                                        }
+                                    }
+                                    if(!Valid){
+                                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot convert from " << Oper->Values[p]->EvaluatedTypedef << " to " << Functions->Parameters[p]->TypeDef << std::endl;
+                                        return -1;
+                                    }
+                                }
+                                else{
+                                    if(Oper->Values.size() > p){
+                                        bool Valid = false;
+                                        for(auto x : TypeConversionCompatibilityMap[Oper->Values[p]->EvaluatedTypedef]){
+                                            if(x == Functions->Parameters[p]->TypeDef){
+                                                // We can convert
+                                                Valid = true;
+                                                break;
+                                            }
+                                        }
+                                        if(!Valid){
+                                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Cannot convert from " << Oper->Values[p]->EvaluatedTypedef << " to " << Functions->Parameters[p]->TypeDef << std::endl;
+                                            return -1;
+                                        }
+                                    }
+                                    else{
+                                        SemanticOperation* ParameterOperation = new SemanticOperation{};
+                                        ParameterOperation->EvaluatedTypedef = Functions->Parameters[p]->TypeDef;
+                                        ParameterOperation->Namespace = Operation->Namespace;
+                                        ParameterOperation->ResultStore = SemanticFunctionArgs[p];
+                                        ParameterOperation->TokenIndex = -1;
+                                        ParameterOperation->TokenSize = 0;
+                                        SemanticOperation::SemanticOperationValue* LoadParam = new SemanticOperation::SemanticOperationValue{};
+                                        LoadParam->Value = Functions->Parameters[p]->Initialiser;
+                                        LoadParam->Type = SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VALUE;
+                                        // TODO Custom Intialisers
+                                        if(LoadParam->Value.find_first_not_of("0123456789-") == std::string::npos && ('-' == LoadParam->Value.front() || LoadParam->Value.find('-') == std::string::npos) && std::count(LoadParam->Value.begin(), LoadParam->Value.end(), '-') <= 1){    
+                                            long Value = std::atol(LoadParam->Value.data());
+                                            if(Value <= 0xFF / 2){
+                                                LoadParam->TypeDef = "char";
+                                            }
+                                            else if (Value <= 0xFFFF / 2){
+                                                LoadParam->TypeDef = "short";
+                                            }
+                                            else if(Value <= 0xFFFFFFFF / 2){
+                                                LoadParam->TypeDef = "int";
+                                            }
+                                            else{
+                                                LoadParam->TypeDef = "long";
+                                            }
+                                        }
+                                        else if(LoadParam->Value.find_first_not_of("0123456789-.") == std::string::npos && ('-' == LoadParam->Value.front() || LoadParam->Value.find('-') == std::string::npos) && std::count(LoadParam->Value.begin(), LoadParam->Value.end(), '-') <= 1 && std::count(LoadParam->Value.begin(), Oper->Value.end(), '.') <= 1){
+                                            LoadParam->TypeDef = "double";
+                                        }
+                                        else if(LoadParam->Value == std::string("true") || LoadParam->Value == std::string("false")){
+                                            LoadParam->TypeDef = "bool";
+                                        }
+                                        else if(LoadParam->Value[0] == '\"' && LoadParam->Value.ends_with("\"")){
+                                            LoadParam->TypeDef = "string";
+                                        }
+                                        else if(LoadParam->Value[0] == '\'' && LoadParam->Value.ends_with("'")){
+                                            LoadParam->TypeDef = "char";
+                                        }
+                                        else{
+                                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Encountered Invalid Literal" << std::endl;
+                                            return -1;
+                                        }
+
+                                        ParameterOperation->Operations.push_back(LoadParam);
+                                        Oper->Values.push_back(ParameterOperation);
+                                    }
+                                }
+                            }
+
+                            Oper->TypeDef = Functions->FunctionReturn.TypeDef;
+                            Oper->Value = "__" + File->ID + "__" + Functions->Symbol;
+
+                            Operation->Operations.push_back(Oper);
+                            ValuesLoaded++;
+
+                            break;
+                        }
+                    }
+
+                    if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentEnd){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "')' Expected but got(" + Lexar->getToken(TokenIndex).tokenValue << ")" << std::endl;
+                        return -1;
+                    }
+                }
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Non-Implemented Operation capability Found (" + Lexar->getToken(TokenIndex).tokenValue << ")" << std::endl;
+                return -1;
+            }
+
+            TokenIndex++;
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Encountered EOF while interpreting operation" << std::endl;
+                return -1;
+            }
+        }
+
+        // Load remaning operations from stack
+        while(Operations.size() > 0){
+            // More preferable
+            Operation->Operations.push_back(Operations.top());
+            Operations.pop();
+            ValuesLoaded-=1;
+        }
+
+        if(ValuesLoaded != 1){
+            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Operator to operations missmatch" << std::endl;
+            return -1;
+        }
+
+        // Evalue typedef
+        // Prioritsise larger data types
+        std::string EvalType = "";
+        for(auto o : Operation->Operations){
+            if(StandardisedTypes[o->TypeDef] == nullptr){
+                std::cerr << "Custom types are currentyl unsupported for operations" << std::endl;
+                return -1;
+            }
+
+            if(o->Type <= SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD){
+                if(EvalType == ""){
+                    EvalType = o->TypeDef;
+                }
+                else{
+                    if(StandardisedTypes[EvalType]->DataSize < StandardisedTypes[o->TypeDef]->DataSize){
+                        bool Valid = false;
+                        for(auto x : TypeConversionCompatibilityMap[EvalType]){
+                            if(x == o->TypeDef){
+                                // We can convert
+                                Valid = true;
+                                break;
+                            }
+                        }
+                        if(Valid){
+                            EvalType = o->TypeDef;
+                        }
+                        else{
+                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Typedef missmatch for operator" << std::endl;
+                            return -1;
+                        }
+                    }
+                    else{
+                        bool Valid = false;
+                        for(auto x : TypeConversionCompatibilityMap[o->TypeDef]){
+                            if(x == EvalType){
+                                // We can convert
+                                Valid = true;
+                                break;
+                            }
+                        }
+                        if(!Valid){
+                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Typedef missmatch for operator" << std::endl;
+                            return -1;
+                        }
+                    }
+                }
+            }
+        }
+        Operation->EvaluatedTypedef = EvalType;
+
+        RetPoint = Operation;
+
+        return 0;
+    }
+
+    int InterpretStatement(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, int& TokenIndex){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        if(Lexar->getToken(TokenIndex).tokenValue == "return"){ // Return statement
+            SemanticStatment* SemStatement = new SemanticStatment{};
+            SemStatement->StateType = SemanticStatment::StatementType::RETURN_STATEMENT;
+            SemStatement->Namespace = ParentBlock->Namespace;
+            SemStatement->TokenIndex = TokenIndex;
+
+            TokenIndex++;
+
+            SemanticOperation* Operation = nullptr;
+            
+            // Operation
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::LineEnd && Function->FunctionReturn.WillReturn){    
+                if(InterpretOpration(File, Function, ParentBlock, Operation, TokenIndex)){
+                    return -1;
+                }
+
+                SemStatement->ParameterOperations.push_back(Operation);
+
+                // Ensure type consistency
+                if(Operation->EvaluatedTypedef != Function->FunctionReturn.TypeDef){
+                    bool Valid = false;
+                    for(auto x : TypeConversionCompatibilityMap[Operation->EvaluatedTypedef]){
+                        if(x == Function->FunctionReturn.TypeDef){
+                            // We can convert
+                            Valid = true;
+                            break;
+                        }
+                    }
+                    if(!Valid){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Attempted to return non " << Function->FunctionReturn.TypeDef << std::endl;
+                        return -1;
+                    }
+
+                    Operation->EvaluatedTypedef = Function->FunctionReturn.TypeDef;
+                }
+
+                Operation->ResultStore = "rax";
+            }
+            else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::LineEnd && Function->FunctionReturn.WillReturn){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Attempted to return with no value" << std::endl;
+                return -1;
+            }
+
+            SemStatement->TokenSize = TokenIndex - SemStatement->TokenIndex;
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::LineEnd){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "';' expected but got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            TokenIndex++;
+
+            ParentBlock->Block.push_back(SemStatement);
+
+            return 0;
+        }
+        else{
+            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Statement not interpretable " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+            return -1;
+        }
+
+        return -1;
+    }
+
+    int InterpretBlock(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, int& TokenIndex){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        for(;Lexar->getToken(TokenIndex).tokenType != TokenTypes::BlockEnd;){
+            // 3 Types available for loading
+            // Statement
+            // Operation
+            // Block
+
+            // COULD BE VARIABLE DEF
+            // TODO Variable Definition
+
+            // Start with statments
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Statement){
+                // See what statement
+                if(InterpretStatement(File, Function, ParentBlock, TokenIndex)){ // Will increment i
+                    return -1;
+                }
+            }
+            else{
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected token " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+        }
+
+        return 0;
+    }
+
+    int InterpretFunctionBlock(SemanticisedFile* File, SemanticFunctionDeclaration* Function){
+        LexicalAnalyser* Lexar = File->Lexar;
+
+        // Function block def
+        SemanticBlock* FunctionBlock = new SemanticBlock{};
+        FunctionBlock->Namespace = Function->Namespace;
+        FunctionBlock->TokenIndex = Function->StartToken;
+        FunctionBlock->TokenSize = Function->EndToken - Function->StartToken;
+        FunctionBlock->Parent = nullptr;
+
+        int TokenIndex = Function->StartToken;
+
+        if(InterpretBlock(File, Function, FunctionBlock, TokenIndex)){
+            return -1;
+        }
+
+        if(TokenIndex != Function->EndToken){
+            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Incomplete Block Interperation for function " << Function->Identifier << std::endl;
+            return -1;
+        }
+
+        Function->Block = FunctionBlock;
+
+        return 0;
+    }
+
 }
 
 SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
@@ -1067,6 +1528,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
         // Load associated Lexar-File
         File->AssociatedFile = Lexar->GetFilename();
         File->Lexar = Lexar;
+        File->ID = GenerateID();
 
         for(int i = 0; i < Lexar->Tokens().size();){ // Manual Incremenation
             // ONLY ALLOW AT BEGINING
@@ -1124,6 +1586,17 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
         // Load Global Variables
         if(Classifiers::FindGlobalVariables(File)){
             return;
+        }
+
+        // Interpret functions
+        for(auto f : File->FunctionDefs){
+            if(f->IsBuiltin || !f->StartToken){
+                continue; // Not definable
+            }
+
+            if(Classifiers::InterpretFunctionBlock(File, f)){
+                return;
+            }
         }
 
         Analysed.push_back(Lexar);

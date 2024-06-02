@@ -60,7 +60,7 @@ std::vector<std::string> StandardTypeDefs = {
     "ushort",
     "long",
     "ulong",
-    "float",
+    "float", // TODO REMOVE!
     "double",
     "char",
     "uchar",

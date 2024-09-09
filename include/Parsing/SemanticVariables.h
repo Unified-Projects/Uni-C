@@ -103,6 +103,7 @@ namespace Parsing
                     // Oprators
                     OPERATION_VALUE,
                     OPERATION_VARIABLE,
+                    OPERATION_VARIABLE_ARGUMENT,
                     OPERATION_FUNCTION,
                     
                     // Actual Operations

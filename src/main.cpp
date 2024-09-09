@@ -100,7 +100,22 @@ int main(int argc, char* argv[]){
             if(x->GetType() == 0){
                 // Statement
                 auto SemStat = (Parsing::SemanticVariables::SemanticStatment*)x;
-                std::cout << std::string((depth + 1 + IdentPlus)*(IndentCount), ' ') << "Statement: t(" << SemStat->StateType << ") TODO PARAMS" << std::endl;
+                std::cout << std::string((depth + 1 + IdentPlus)*(IndentCount), ' ') << "Statement: t(" << SemStat->StateType << ")" << std::endl;
+
+                for(auto p : SemStat->ParameterVariables){
+                    std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "Variable: " << " t(" << p->TypeDef << ") v(" << p->Initialiser << ")" << std::endl;
+                }
+                for(auto p : SemStat->ParameterOperations){
+                    auto ParOP = (Parsing::SemanticVariables::SemanticOperation*)p;
+                    std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "Operation: t(" << ParOP->EvaluatedTypedef << ")" << std::endl;
+                    for(auto o : ParOP->Operations){
+                        std::cout << std::string((depth + 3 + IdentPlus)*(IndentCount), ' ') << "t(" << o->Type << ") T(" << o->TypeDef << ") v(" << o->Value << ")" << std::endl;
+                    }
+                }
+                for(auto p : SemStat->ParameterConditions){
+                    auto ParCon = (Parsing::SemanticVariables::SemanticOperation*)p;
+                    std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "Condition: TODO" << std::endl;
+                }
 
                 if(SemStat->Block){
                     LogBlock((Parsing::SemanticVariables::SemanticBlock*)x, depth+2 + IdentPlus);

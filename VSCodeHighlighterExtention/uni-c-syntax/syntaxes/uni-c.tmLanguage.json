@@ -1,0 +1,69 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Uni-C",
+	"patterns": [
+	  { "include": "#keywords" },
+	  { "include": "#strings" },
+	  { "include": "#dataTypes" },
+	  { "include": "#comments" },
+	  { "include": "#operators" },
+	  { "include": "#functions" },
+	  { "include": "#numbers" }
+	],
+	"repository": {
+	  "keywords": {
+		"patterns": [{
+		  "name": "keyword.control.uni-c",
+		  "match": "\\b(if|while|for|return)\\b"
+		}]
+	  },
+	  "dataTypes": {
+		"patterns": [{
+		  "name": "storage.type.uni-c",
+		  "match": "\\b(char|uchar|short|ushort|int|uint|long|ulong|string|void)\\b"
+		}]
+	  },
+	  "strings": {
+		"name": "string.quoted.double.uni-c",
+		"begin": "\"",
+		"end": "\"",
+		"patterns": [{
+		  "name": "constant.character.escape.uni-c",
+		  "match": "\\\\."
+		}]
+	  },
+	  "comments": {
+		"patterns": [
+		  {
+			"name": "comment.line.double-slash.uni-c",
+			"match": "//.*"
+		  },
+		  {
+			"name": "comment.block.uni-c",
+			"begin": "/\\*",
+			"end": "\\*/"
+		  }
+		]
+	  },
+	  "operators": {
+		"patterns": [{
+		  "name": "keyword.operator.uni-c",
+		  "match": "\\+|\\-|\\*|\\/|==|!=|<=|>=|&&|\\|\\||!"
+		}]
+	  },
+	  "functions": {
+		"patterns": [{
+		  "name": "entity.name.function.uni-c",
+		  "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b(?=\\s*\\()"
+		}]
+	  },
+	  "numbers": {
+		"patterns": [{
+		  "name": "constant.numeric.uni-c",
+		  "match": "\\b\\d+(\\.\\d+)?\\b"
+		}]
+	  }
+	},
+	"scopeName": "source.uc"
+  }
+  

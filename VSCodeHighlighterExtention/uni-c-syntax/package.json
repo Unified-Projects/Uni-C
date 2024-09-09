@@ -1,0 +1,25 @@
+{
+  "name": "uni-c-syntax",
+  "displayName": "Uni-C Syntax",
+  "description": "Provides Syntax Highlighting for Uni-C",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "uni-c",
+      "aliases": ["Uni-C", "uni-c"],
+      "extensions": [".uc"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "uni-c",
+      "scopeName": "source.uc",
+      "path": "./syntaxes/uni-c.tmLanguage.json"
+    }]
+  }
+}

@@ -16,6 +16,7 @@ namespace Exporting
         struct RegisterDefinition{
             std::map<int, std::string> RegisterTable = {}; // (Bit size to register)
             std::string Get(int Size);
+            std::string GetBitOp(int Size);
             std::string SetVal(Parsing::SemanticVariables::SemanticOperation::SemanticOperationValue* Value);
         };
 

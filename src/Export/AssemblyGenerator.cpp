@@ -26,6 +26,15 @@ extern std::map<SemanticTypeDefDeclaration*, SemanticObjectDefinition*> Standard
 
 extern std::string GenerateID();
 
+std::vector<std::string> ArgumentRegisters {
+    "rbx",
+    "rcx",
+    "rdx",
+    "rsi",
+    "rdi",
+    "rbp",
+};
+
 std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticOperation* Operation, SemanticBlock* ParentBlock){
     std::string Assembly = "";
 
@@ -49,6 +58,19 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             Assembly += "    push " + Register1->Get(8) + "\n";
             Types.push(Oper->TypeDef);
         }
+        else if (Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE){
+            auto Var = Stack->FindSymbol(Oper->Value, Oper->TypeDef, Assembly);
+            Assembly += "    push " + Var->Get(8) + "\n";
+            Types.push(Oper->TypeDef);
+        }
+        else if (Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE_ARGUMENT){
+            if (atoi(Oper->Value.data()) > ArgumentRegisters.size()){
+                // TODO GET FROM STACK
+                std::cerr << __LINE__ << " STUB" << std::endl;
+            }
+            Assembly += "    push " + ArgumentRegisters[std::atoi(Oper->Value.data())] + "\n";
+            Types.push(Oper->TypeDef);
+        }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_FUNCTION){
             for(auto p : Oper->Values){
                 std::string Parameter = InterpretOperation(File, Function, p, ParentBlock);
@@ -60,13 +82,15 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
 
             // Save stack for allignment
             //TODO Stack helper tool to do this and allow stack based argumetns
-            Assembly += "    mov [__" + File->ID + "__" + Function->Symbol + "__RSP + 8], rsp\n    and rsp, -0x40\n";
+            Assembly += "    mov q [__" + File->ID + "__" + Function->Symbol + "__RSP_8], rsp\n    and q rsp, rsp, -64\n";
 
             Assembly += "    call " + Oper->Value + "\n";
 
-            Assembly += "    mov rsp, [__" + File->ID + "__" + Function->Symbol + "__RSP + 8]\n";
+            Assembly += "    mov q rsp, [__" + File->ID + "__" + Function->Symbol + "__RSP_8]\n";
 
             Assembly += "    push rax\n"; // Load return value
+
+            Types.push(Oper->TypeDef);
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD){
             Assembly += "    pop " + Register1->Get(8) + "\n";
@@ -80,12 +104,12 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             Types.pop();
 
             if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
-                Assembly += "    add " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    add " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
                 Types.push(Reg1Type);
             }
             else{
-                Assembly += "    add " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    add " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
                 Types.push(Reg2Type);
             }
@@ -137,7 +161,7 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
                     Assembly += Operation;
                 }
                 
-                Assembly += "    mov rsp, [__" + File->ID + "__" + Function->Symbol + "__RSP]\n    ret\n";
+                Assembly += "    mov q rsp, [__" + File->ID + "__" + Function->Symbol + "__RSP]\n    ret\n";
             }
             else{
                 std::cerr << Function->Identifier << ":" << s->TokenIndex << " << ASM::" << __LINE__ << " << " << "Statement not implemented (" << Statement->StateType << ")" << std::endl;
@@ -159,19 +183,13 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
 }
 
 std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
-    std::string File_Header = ";; This was automatically generated using the Uni-C Compiler for NASM\nbits 64\ndefault rel\n";
+    std::string File_Header = ";; This was automatically generated using the Uni-C Compiler for Uni-CPU\n";
     std::string File_BSS = ""; // Un-Initialised Data (Zeroed)
     std::string File_DATA = ""; // Initialised Data
     std::string File_Text = ""; // Code and Consts
 
-#ifdef WIN32
-    std::string File_Externs = "\nextern ExitProcess\n";
-#else
-#error "UNSUPPORTED OS FORMAT";
-#endif
-
     //
-    // Load Global Variables
+    // Load global Variables
     //
 
     //
@@ -205,8 +223,9 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                 }
 
                 // Load header
-                FunctionString = "global __" + F->ID + "__" + f->Symbol + "\n__" + F->ID + "__" + f->Symbol + ":\n    mov [__" + F->ID + "__" + f->Symbol + "__RSP], rsp\n" + FunctionString;
-                File_BSS += "__" + F->ID + "__" + f->Symbol + "__RSP:\n    resb 16\n";
+                FunctionString = "; global __" + F->ID + "__" + f->Symbol + "\n__" + F->ID + "__" + f->Symbol + ":\n    mov q [__" + F->ID + "__" + f->Symbol + "__RSP], rsp\n" + FunctionString;
+                File_BSS += "__" + F->ID + "__" + f->Symbol + "__RSP:\n    resb 8\n";
+                File_BSS += "__" + F->ID + "__" + f->Symbol + "__RSP_8:\n    resb 8\n";
 
                 LoadedFunctions += FunctionString;
             }
@@ -238,7 +257,7 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                 for(auto f : F->FunctionDefs){
                     if(f->Identifier == "main" && f->Namespace == "__GLOB__" && f->StartToken && f->Parameters.size() == 0 /*TODO Arg stuff*/){
                         if(!f->FunctionReturn.WillReturn){
-                            RetVal = "\n    mov rax, 0";
+                            RetVal = "\n    mov q rax, 0";
                         }
                         else if(f->FunctionReturn.TypeDef == "int"){
                             // Nothinghere just a preventative method
@@ -261,44 +280,36 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
         File_BSS = "\n" + EntryRSPSave + ":\n    resb 8\n" + File_BSS;
 
 
-        EntryText = "global _start\n_start:\n    mov [" + EntryRSPSave + "], rsp\n    and rsp, -16\n    call " + EntryFunction + RetVal + "\n    mov rsp, [" + EntryRSPSave + "]\n    ret\n"; // TODO Arguments and environment processing
+        EntryText = "; global _start\n_start:\n    mov q [" + EntryRSPSave + "], rsp\n    and q rsp, rsp, -16\n    call " + EntryFunction + RetVal + "\n    mov q rsp, [" + EntryRSPSave + "]\n    halt\n"; // TODO Arguments and environment processing
     }
 
     //
     // Data Assembly
     //
 
-    return File_Header + File_Externs + "\nsection .bss\n" + File_BSS + "\nsection .data\n" + File_DATA + "\nsection .text\n" + EntryText + File_Text;
+    return File_Header + "; TODO REMOVE AS EXECUTABLE SHOULD PRELOAD RSP\n    mov q rsp, 50000000\n    jmp _start\n; section .bss\n" + File_BSS + "\n; section .data\n" + File_DATA + "\n; section .text\n" + EntryText + File_Text;
 }
 
 AssemblyGenerator::AssemblyGenerator(){
-    // Setup global stack
+    // Setup ; global stack
     this->Stack = new GlobalStack{};
 
     // Registers
-    // R8-15 are Generic and usable
-    // RAX - Return value
-    // RSP - Stack reserve
-    // RBX-RDX RSI,RDI,RBP - Argument (WinAPI uses RCX, RDX, R8, R9)
-
-    // XMM0-XMM15 - FLOAT
 
     this->Stack->SymbolMap = {
-        {new RegisterDefinition{{{64, "r8"}, {32, "r8d"}, {16, "r8w"}, {8, "r8b"}, {128, "xmm0"}}}, ""},
-        {new RegisterDefinition{{{64, "r9"}, {32, "r9d"}, {16, "r9w"}, {8, "r9b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r10"}, {32, "r10d"}, {16, "r10w"}, {8, "r10b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r11"}, {32, "r11d"}, {16, "r11w"}, {8, "r11b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r12"}, {32, "r12d"}, {16, "r12w"}, {8, "r12b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r13"}, {32, "r13d"}, {16, "r13w"}, {8, "r13b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r14"}, {32, "r14d"}, {16, "r14w"}, {8, "r14b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "r15"}, {32, "r15d"}, {16, "r15w"}, {8, "r15b"}, {128, "xmmo"}}}, ""},
-        {new RegisterDefinition{{{64, "rax"}, {32, "eax"}, {16, "ax"}, {8, "rax ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rsp"}, {32, "esp"}, {16, "sp"}, {8, "rsp ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rbx"}, {32, "ebx"}, {16, "bx"}, {8, "rbx ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rcx"}, {32, "ecx"}, {16, "cx"}, {8, "rcx ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rdx"}, {32, "edx"}, {16, "dx"}, {8, "rdx ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rsi"}, {32, "esi"}, {16, "si"}, {8, "rsi ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rdi"}, {32, "edi"}, {16, "di"}, {8, "rdi ERR Require movb"}, {128, ""}}}, ""},
-        {new RegisterDefinition{{{64, "rbp"}, {32, "ebp"}, {16, "bp"}, {8, "rbp ERR Require movb"}, {128, ""}}}, ""}
+        {new RegisterDefinition{{{64, "r0"}, {32, "r0"}, {16, "r0"}, {8, "r0"}}}, ""},
+        {new RegisterDefinition{{{64, "r1"}, {32, "r1"}, {16, "r1"}, {8, "r1"}}}, ""},
+        {new RegisterDefinition{{{64, "r2"}, {32, "r2"}, {16, "r2"}, {8, "r2"}}}, ""},
+        {new RegisterDefinition{{{64, "r3"}, {32, "r3"}, {16, "r3"}, {8, "r3"}}}, ""},
+        {new RegisterDefinition{{{64, "r4"}, {32, "r4"}, {16, "r4"}, {8, "r4"}}}, ""},
+        {new RegisterDefinition{{{64, "r5"}, {32, "r5"}, {16, "r5"}, {8, "r5"}}}, ""},
+        {new RegisterDefinition{{{64, "r6"}, {32, "r6"}, {16, "r6"}, {8, "r6"}}}, ""},
+        {new RegisterDefinition{{{64, "rax"}, {32, "rax"}, {16, "rax"}, {8, "rax"}}}, ""},
+        {new RegisterDefinition{{{64, "rbx"}, {32, "rbx"}, {16, "rbx"}, {8, "rbx"}}}, ""},
+        {new RegisterDefinition{{{64, "rcx"}, {32, "rcx"}, {16, "rcx"}, {8, "rcx"}}}, ""},
+        {new RegisterDefinition{{{64, "rdx"}, {32, "rdx"}, {16, "rdx"}, {8, "rdx"}}}, ""},
+        {new RegisterDefinition{{{64, "rsi"}, {32, "rsi"}, {16, "rsi"}, {8, "rsi"}}}, ""},
+        {new RegisterDefinition{{{64, "rdi"}, {32, "rdi"}, {16, "rdi"}, {8, "rdi"}}}, ""},
+        {new RegisterDefinition{{{64, "rsp"}, {32, "rsp"}, {16, "rsp"}, {8, "rsp"}}}, ""},
     };
 }

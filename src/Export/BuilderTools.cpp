@@ -39,11 +39,7 @@ std::string Exporting::GetLineValue(int token){
     return "";
 }
 
-#ifndef WIN32
-    std::vector<std::string> UsableRegisters = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"};
-#else
-    std::vector<std::string> UsableRegisters = {"r10", "r11", "r12", "r13", "r14", "r15", "rsi", "rdi", "rbp"};
-#endif
+std::vector<std::string> UsableRegisters = {"r0", "r1", "r2", "r3", "r4", "r5", "r6"};
 
 std::string RegisterDefinition::Get(int Size){
     if(Size == 16){
@@ -67,24 +63,46 @@ std::string RegisterDefinition::Get(int Size){
 
     return "";
 }
+std::string RegisterDefinition::GetBitOp(int Size){
+    if(Size == 16){
+        return "q";
+    }
+    else if(Size == 8){
+        return "q";
+    }
+    else if(Size == 4){
+        return "d";
+    }
+    else if(Size == 2){
+        return "w";
+    }
+    else if(Size == 1){
+        return "b";
+    }
+    else{
+        return "q";
+    }
+
+    return "";
+}
 
 std::string RegisterDefinition::SetVal(SemanticOperation::SemanticOperationValue* Value){
     if(Value->TypeDef == "") throw "No Type Definition for Value";
 
     if(StandardisedTypes[Value->TypeDef]->DataSize == 8){
-        return ("    mov " + this->RegisterTable[64] + ", " + Value->Value + "\n");
+        return ("    mov q " + this->RegisterTable[64] + ", " + Value->Value + "\n");
     }
     else if(StandardisedTypes[Value->TypeDef]->DataSize == 4){
-        return ("    mov " + this->RegisterTable[32] + ", " + Value->Value + "\n");
+        return ("    mov d " + this->RegisterTable[32] + ", " + Value->Value + "\n");
     }
     else if(StandardisedTypes[Value->TypeDef]->DataSize == 2){
-        return ("    mov " + this->RegisterTable[16] + ", " + Value->Value + "\n");
+        return ("    mov w " + this->RegisterTable[16] + ", " + Value->Value + "\n");
     }
     else if(StandardisedTypes[Value->TypeDef]->DataSize == 1){
-        return ("    mov " + this->RegisterTable[64] + ", " + Value->Value + "\n");
+        return ("    mov b " + this->RegisterTable[64] + ", " + Value->Value + "\n");
     }
     else{
-        return ("    mov " + this->RegisterTable[64] + " [" + Value->Value + "]\n");
+        return ("    mov q " + this->RegisterTable[64] + " [" + Value->Value + "]\n");
     }
     return "";
 }

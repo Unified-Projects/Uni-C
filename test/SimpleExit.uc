@@ -1,7 +1,8 @@
 int FuncTest(int x = 2){
-    return 1;
+    return x;
 }
 
 int main(){
-    return FuncTest();
+    int y = 2;
+    return y + FuncTest();
 }

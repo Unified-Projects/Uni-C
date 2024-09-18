@@ -75,10 +75,45 @@ namespace Parsing
             virtual int GetType() {return -1;}
         };
 
+        struct SemanticOperation;
+
+        struct SemanticCondition : SemanticInstance{
+            SemanticOperation* Operation1 = nullptr;
+            SemanticOperation* Operation2 = nullptr;
+
+            enum ConditionTypes{
+                EQU_CONDITION = 0,
+                NEQ_CONDITION = 1,
+                LEQ_CONDITION = 2,
+                GEQ_CONDITION = 3,
+                LTH_CONDITION = 4,
+                GTH_CONDITION = 5,
+            } Condition = EQU_CONDITION;
+
+            int GetType() {return 3;}
+        };
+
+        struct SemanticBooleanOperator : SemanticInstance{
+            enum ConditionOperationTypes{
+                XOR_CONDITION_OPERATION,
+                OR_CONDITION_OPERATION,
+                AND_CONDITION_OPERATION,
+                NAND_CONDITION_OPERATION,
+                NOR_CONDITION_OPERATION,
+            } Condition = AND_CONDITION_OPERATION;
+
+            int GetType() {return 4;}
+        };
+
         struct SemanticStatment : SemanticInstance{
             enum StatementType{
                 NULL_STATMENT,
                 RETURN_STATEMENT,
+                IF_STATEMENT,
+                ELSE_STATEMENT,
+                ELSE_IF_STATEMENT,
+                BOOLEAN_STATEMENT,
+                WHILE_STATEMENT,
                 STATIC_STATEMENT, // TODO HANDLE CORRECTLY
                 CONST_STATEMENT // TODO HANDLE CORRECTLY
             };
@@ -108,6 +143,9 @@ namespace Parsing
                     
                     // Actual Operations
                     OPERATION_ADD,
+                    OPERATION_SUB,
+                    OPERATION_MUL,
+                    OPERATION_DIV,
                 };
                 SemanticOperationTypes Type = SemanticOperationTypes::OPERATION_NULL;
                 std::string Value = "";

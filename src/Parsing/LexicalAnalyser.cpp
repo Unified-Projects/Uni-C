@@ -7,10 +7,10 @@ using namespace Parsing;
 
 // Statements
 std::vector<std::string> ValidStatements = {
-    // "if",
-    // "else",
+    "if",
+    "else",
+    "while",
     // "for",
-    // "while",
     // "do",
     // "switch",
     // "case",
@@ -209,7 +209,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data, const std::string File
                 Stream = EatChar(Stream);
                 if (GetChar(Stream) == '=')
                 {
-                    tokens.push_back(Token{"==", TokenTypes::Operator, Line, CurrentLine});
+                    tokens.push_back(Token{"==", TokenTypes::Comparitor, Line, CurrentLine});
                     Stream = EatChar(Stream);
                     break;
                 }
@@ -218,16 +218,74 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data, const std::string File
             }
             break;
         case '<':
+            // Edge case of next char being "="
+            Stream = EatChar(Stream);
+            if (GetChar(Stream) == '=')
+            {
+                tokens.push_back(Token{"<=", TokenTypes::Comparitor, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            else if (GetChar(Stream) == '<'){
+                tokens.push_back(Token{"<<", TokenTypes::Operator, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            tokens.push_back(Token{"<", TokenTypes::Comparitor, Line, CurrentLine});
+            Stream = EatChar(Stream);
             break;
         case '>':
+            // Edge case of next char being "="
+            Stream = EatChar(Stream);
+            if (GetChar(Stream) == '=')
+            {
+                tokens.push_back(Token{">=", TokenTypes::Comparitor, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            else if (GetChar(Stream) == '>'){
+                tokens.push_back(Token{">>", TokenTypes::Operator, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            tokens.push_back(Token{">", TokenTypes::Operator, Line, CurrentLine});
+            Stream = EatChar(Stream);
             break;
         case '!':
+            // Edge case of next char being "="
+            Stream = EatChar(Stream);
+            if (GetChar(Stream) == '=')
+            {
+                tokens.push_back(Token{"!=", TokenTypes::Comparitor, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
             tokens.push_back(Token{"!", TokenTypes::Operator, Line, CurrentLine});
             Stream = EatChar(Stream);
             break;
         case '&':
+            // Edge case of next char being "&"
+            Stream = EatChar(Stream);
+            if (GetChar(Stream) == '&')
+            {
+                tokens.push_back(Token{"&&", TokenTypes::BooleanOperator, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            tokens.push_back(Token{"&", TokenTypes::Operator, Line, CurrentLine});
+            Stream = EatChar(Stream);
             break;
         case '|':
+            // Edge case of next char being "|"
+            Stream = EatChar(Stream);
+            if (GetChar(Stream) == '|')
+            {
+                tokens.push_back(Token{"||", TokenTypes::BooleanOperator, Line, CurrentLine});
+                Stream = EatChar(Stream);
+                break;
+            }
+            tokens.push_back(Token{"|", TokenTypes::Operator, Line, CurrentLine});
+            Stream = EatChar(Stream);
             break;
         case '^':
             break;

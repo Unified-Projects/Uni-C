@@ -28,6 +28,22 @@
                 "${fileBasenameNoExtension}"
             ],
             "MIMode": "gdb",
+        },
+        {
+            "name": "Debug Sample (MacOS)",
+            "cwd": "${workspaceFolder}",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/bin/Compiler",  // Change extension if necessary
+            "args": [
+                "-i",
+                "${file}",
+                "-o",
+                "${fileBasenameNoExtension}"
+            ],
+            "stopAtEntry": false,
+            "MIMode": "lldb",  // Use lldb for macOS instead of gdb
+            // "miDebuggerPath": "/usr/bin/lldb",  // macOS comes with LLDB pre-installed
         }
     ]
 }

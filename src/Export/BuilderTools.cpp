@@ -128,13 +128,26 @@ RegisterDefinition* GlobalStack::GetTempRegister(std::string Symbol, std::string
     }
 
     // Any non-free registers
-    if(!ActiveRegister)
-    throw "NO FREE REGISTERS!";
+    if(!ActiveRegister){
+        std::cerr << "NO FREE REGISTERS!\n";
+        throw 0;
+    }
 
     return ActiveRegister;
 }
 int GlobalStack::ReleaseTempRegister(std::string Symbol, std::string& AssemblyUpdate){
-    return 0;
+    for(auto& x : UsableRegisters){
+        for(auto& y : SymbolMap){
+            if(y.first->RegisterTable[64] == x){
+                if(y.second == Symbol){
+                    // Its free now
+                    y.second = "";
+                    return 0;
+                }
+            }
+        }
+    }
+    return -1;
 }
 RegisterDefinition* GlobalStack::FindSymbol(std::string Symbol, std::string TypeDef, std::string& AssemblyUpdate){
     return nullptr;

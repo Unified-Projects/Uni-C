@@ -55,10 +55,9 @@ std::map<std::string, SemanticTypeDefDeclaration*> StandardisedTypes{
     {"uchar", new SemanticTypeDefDeclaration{"uchar", 1, false, {false, ""}, "__GLOB__"}},
     {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
     {"", new SemanticTypeDefDeclaration{"", 4, false, {false, ""}, "__GLOB__"}},
-    {"string", new SemanticTypeDefDeclaration{"string", 12, false, {false, ""}, "__GLOB__"}}
 };
 std::map<SemanticTypeDefDeclaration*, SemanticObjectDefinition*> StandardObjectTypes{
-    {StandardisedTypes["string"], new SemanticObjectDefinition{"string", {new SemanticVariable{true, false, false, false, false, "ulong", "Length", "0", "__GLOB____CLASS____string__", -1}, new SemanticVariable{true, false, false, false, true, "char", "Data", "0", "__GLOB____CLASS____string__", -1}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
+    {new SemanticTypeDefDeclaration{"string", 12, false, {false, ""}, "__GLOB__"}, new SemanticObjectDefinition{"string", {new SemanticVariable{true, false, false, false, false, "ulong", "Length", "0", "__GLOB____CLASS____string__", -1}, new SemanticVariable{true, false, false, false, true, "char", "Data", "0", "__GLOB____CLASS____string__", -1}}, {/*TODO Things like Size, Substr, FirstOf...*/}, "__GLOB__", "", -1, -1}} // String
 };
 
 std::map<std::string, std::vector<std::string>> TypeConversionCompatibilityMap{ // Todo Match operations that are defined to allow custom type conversions too
@@ -78,7 +77,24 @@ std::map<std::string, std::vector<std::string>> TypeConversionCompatibilityMap{ 
 };
 
 std::map<std::string, SemanticOperation::SemanticOperationValue::SemanticOperationTypes> OperationTypeMap{
-    {"+", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD},
+    {"+", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD}, 
+    {"-", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_SUB}, 
+    {"/", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_DIV}, 
+    {"*", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_MUL}, 
+};
+
+std::map<std::string, SemanticCondition::ConditionTypes> ConditionTypeMap{
+    {"==", SemanticCondition::ConditionTypes::EQU_CONDITION},  
+    {"!=", SemanticCondition::ConditionTypes::NEQ_CONDITION},  
+    {"<=", SemanticCondition::ConditionTypes::LEQ_CONDITION},  
+    {"<", SemanticCondition::ConditionTypes::LTH_CONDITION},  
+    {">", SemanticCondition::ConditionTypes::GTH_CONDITION},  
+    {">=", SemanticCondition::ConditionTypes::GEQ_CONDITION},  
+};
+
+std::map<std::string, SemanticBooleanOperator::ConditionOperationTypes> BooleanOperationTypeMap{
+    {"&&", SemanticBooleanOperator::AND_CONDITION_OPERATION},  
+    {"||", SemanticBooleanOperator::OR_CONDITION_OPERATION},  
 };
 
 namespace Classifiers{ // Functions that are used to classify types of things like statements and operations
@@ -1254,7 +1270,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
         return 0;
     }
 
-    int InterpretOpration(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, SemanticOperation*& RetPoint, int& TokenIndex, bool function = false){
+    int InterpretOpration(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, SemanticOperation*& RetPoint, int& TokenIndex, bool function = false, int EndToken = -1){
         // Ensure typedef consistancy
         LexicalAnalyser* Lexar = File->Lexar;
 
@@ -1264,9 +1280,12 @@ namespace Classifiers{ // Functions that are used to classify types of things li
         Operation->Namespace = ParentBlock->Namespace;
 
         std::stack<SemanticOperation::SemanticOperationValue*> Operations = {};
+        std::stack<int> BracketIndex = {};
         int ValuesLoaded = 0;
+
+        int Brackets = 1;
         
-        while((Lexar->getToken(TokenIndex).tokenType != TokenTypes::LineEnd && !function) || (Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentEnd && Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentSeparator && function)){
+        while(((Lexar->getToken(TokenIndex).tokenType != TokenTypes::LineEnd && !function) || ((Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentEnd || Brackets > 1) && Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentSeparator && function)) && (TokenIndex <= EndToken || EndToken == -1)){
             SemanticOperation::SemanticOperationValue* Oper = new SemanticOperation::SemanticOperationValue{};
 
             if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Literal){
@@ -1452,7 +1471,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                             }
 
                             Oper->TypeDef = Functions->FunctionReturn.TypeDef;
-                            Oper->Value = "__" + File->ID + "__" + Functions->Symbol;
+                            Oper->Value = Functions->Symbol;
 
                             Operation->Operations.push_back(Oper);
                             ValuesLoaded++;
@@ -1486,16 +1505,15 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                         std::stack<Parsing::SemanticVariables::SemanticBlock *> blockStack;
                         blockStack.push(ParentBlock);
 
-                        bool Local = false;
-
                         while (!blockStack.empty()) {
                             Parsing::SemanticVariables::SemanticBlock * currentBlock = blockStack.top();
                             blockStack.pop();
 
                             for (auto x : currentBlock->Variables) {
-                                if (x->Identifier == Oper->Value) {
+                                if (x->Identifier == Oper->Value){
                                     Local = true;
-                                    Oper->Value = x->Namespace + "_" + x->Identifier;
+                                    Oper->Value = currentBlock->Namespace + "__" + x->Identifier;
+                                    Oper->TypeDef = x->TypeDef;
                                     break; // Assuming you only need the first match
                                 }
                             }
@@ -1520,6 +1538,21 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     ValuesLoaded++;
                 }
             }
+            else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentStart){
+                Brackets++;
+                BracketIndex.push(Operations.size());
+            }
+            else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                Brackets--;
+                int OperationsToPush = Operations.size() - BracketIndex.top();
+                BracketIndex.pop();
+
+                for(; OperationsToPush > 0; OperationsToPush--){
+                    Operation->Operations.push_back(Operations.top());
+                    Operations.pop();
+                    ValuesLoaded--;
+                }
+            }
             else{
                 std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Non-Implemented Operation capability Found (" + Lexar->getToken(TokenIndex).tokenValue << ")" << std::endl;
                 return -1;
@@ -1541,7 +1574,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
         }
 
         if(ValuesLoaded != 1){
-            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Operator to operations missmatch" << std::endl;
+            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Operator to operations missmatch " << ValuesLoaded << std::endl;
             return -1;
         }
 
@@ -1604,6 +1637,8 @@ namespace Classifiers{ // Functions that are used to classify types of things li
         return 0;
     }
 
+    int InterpretBlock(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, int& TokenIndex);
+
     int InterpretStatement(SemanticisedFile* File, SemanticFunctionDeclaration* Function, SemanticBlock* ParentBlock, int& TokenIndex){
         LexicalAnalyser* Lexar = File->Lexar;
 
@@ -1664,6 +1699,599 @@ namespace Classifiers{ // Functions that are used to classify types of things li
 
             return 0;
         }
+        else if (Lexar->getToken(TokenIndex).tokenValue == "if"){
+            TokenIndex++;
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '(' but got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+
+            SemanticStatment* SemStatement = new SemanticStatment{};
+            SemStatement->StateType = SemanticStatment::StatementType::IF_STATEMENT;
+            SemStatement->Namespace = ParentBlock->Namespace;
+            SemStatement->TokenIndex = TokenIndex - 2;
+
+            int ArguemntsToEnd = 1;
+
+            SemanticCondition* CurrentOperation = nullptr;
+            SemanticOperation* Argument1 = nullptr;
+
+            std::stack<SemanticStatment*> CurrentOperatingStatement = {};
+            CurrentOperatingStatement.push(SemStatement);
+
+            // Basically condition bidamas
+            while(Lexar->getToken(TokenIndex).tokenType != TokenTypes::NullToken && ArguemntsToEnd > 0){
+                if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Comparitor){
+                    CurrentOperation = new SemanticCondition();
+                    CurrentOperation->Condition = ConditionTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    CurrentOperation->Namespace = ParentBlock->Namespace;
+                    CurrentOperation->TokenIndex = TokenIndex - 2;
+                    CurrentOperation->Operation1 = Argument1;
+                    Argument1 = nullptr;
+                    TokenIndex++;
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == BooleanOperator){
+                    // Combinations of Conditions
+                    if(CurrentOperation || Argument1){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected Boolean Operator within condition " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    SemanticBooleanOperator* BoolOp = new SemanticBooleanOperator();
+                    BoolOp->Condition = BooleanOperationTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    TokenIndex++;
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(BoolOp);
+
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentStart){
+                    // Only if it contains a comparison otherwise its a operation
+                    int ClonedTokenIndex = TokenIndex;
+                    bool Process = false;
+                    int BlocksToEscape = 0;
+                    while(BlocksToEscape >= 0 && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::Comparitor){
+                            Process = true;
+                            break;
+                        }
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::BooleanOperator){
+                            Process = true;
+                            break;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                            BlocksToEscape++;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                            BlocksToEscape--;
+                        }
+                        ClonedTokenIndex++;
+                    }
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    if(Process){
+                        // BracketsStack.push(ConditionStack.size());
+                        // Start building a new condition
+                        auto newStatement = new SemanticStatment();
+                        newStatement->StateType = SemanticStatment::StatementType::BOOLEAN_STATEMENT;
+                        newStatement->Namespace = ParentBlock->Namespace + "____" + GenerateID() + "__";
+                        newStatement->TokenIndex = TokenIndex;
+                        CurrentOperatingStatement.push(newStatement);
+
+                        ArguemntsToEnd++;
+                        TokenIndex++;
+                        continue;
+                    }
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                    ArguemntsToEnd--;
+
+                    auto Top = CurrentOperatingStatement.top();
+                    CurrentOperatingStatement.pop();
+
+                    if(Top != SemStatement){
+                        CurrentOperatingStatement.top()->ParameterConditions.push_back(Top);
+                    }
+
+                    TokenIndex++;
+                    continue;
+                }
+
+                // Otherwise interpret as a operation
+                // Find end of operation
+                int ClonedTokenIndex = TokenIndex;
+                int EndToken = TokenIndex - 1;
+                int BlocksToEscape = 0;
+                while(Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::Comparitor && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::BooleanOperator && (Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::ArgumentEnd || BlocksToEscape) && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                    ClonedTokenIndex++;
+                    EndToken++;
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                        BlocksToEscape++;
+                    }
+                    else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd && BlocksToEscape){
+                        BlocksToEscape--;
+                    }
+                }
+                if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(ClonedTokenIndex).tokenValue << std::endl;
+                    return -1;
+                }
+
+                // Interpret
+                if(!CurrentOperation){
+                    InterpretOpration(File, Function, ParentBlock, Argument1, TokenIndex, false, EndToken);
+                }
+                else{
+                    InterpretOpration(File, Function, ParentBlock, CurrentOperation->Operation2, TokenIndex, false, EndToken);
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(CurrentOperation);
+                    CurrentOperation = nullptr;
+                }
+
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::BlockStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' Got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+            SemanticBlock* Bloc = new SemanticBlock();
+            SemStatement->Block = Bloc;
+            Bloc->TokenIndex = TokenIndex;
+            Bloc->Namespace = SemStatement->Namespace + "__IF____" + GenerateID() + "__";
+            Bloc->Parent = ParentBlock;
+            
+            // Find end block
+            int BlocksToEnd = 1;
+            int ClonedIndex = TokenIndex;
+            while (Lexar->getToken(ClonedIndex).tokenType != TokenTypes::NullToken && BlocksToEnd){
+                if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockStart){
+                    BlocksToEnd++;
+                }
+                else if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockEnd){
+                    BlocksToEnd--;
+                }
+                ClonedIndex++;
+            }
+            if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            Bloc->TokenSize = ClonedIndex - TokenIndex;
+
+            InterpretBlock(File, Function, Bloc, TokenIndex);
+
+            ParentBlock->Block.push_back(SemStatement);
+            TokenIndex++;
+
+            return 0;
+        }
+        else if (Lexar->getToken(TokenIndex).tokenValue == "else" && Lexar->getToken(TokenIndex+1).tokenValue == "if"){
+            TokenIndex+=2;
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '(' but got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+
+            SemanticStatment* SemStatement = new SemanticStatment{};
+            SemStatement->StateType = SemanticStatment::StatementType::ELSE_IF_STATEMENT;
+            SemStatement->Namespace = ParentBlock->Namespace;
+            SemStatement->TokenIndex = TokenIndex - 2;
+
+            std::stack<SemanticInstance*> ConditionStack = {};
+            std::stack<int> BracketsStack = {};
+            BracketsStack.push(0);
+            int ArguemntsToEnd = 1;
+
+            SemanticCondition* CurrentOperation = nullptr;
+            SemanticOperation* Argument1 = nullptr;
+
+            std::stack<SemanticStatment*> CurrentOperatingStatement = {};
+            CurrentOperatingStatement.push(SemStatement);
+
+            // Basically condition bidamas
+            while(Lexar->getToken(TokenIndex).tokenType != TokenTypes::NullToken && ArguemntsToEnd > 0){
+                if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Comparitor){
+                    CurrentOperation = new SemanticCondition();
+                    CurrentOperation->Condition = ConditionTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    CurrentOperation->Namespace = ParentBlock->Namespace;
+                    CurrentOperation->TokenIndex = TokenIndex - 2;
+                    CurrentOperation->Operation1 = Argument1;
+                    Argument1 = nullptr;
+                    TokenIndex++;
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == BooleanOperator){
+                    // Combinations of Conditions
+                    if(CurrentOperation || Argument1){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected Boolean Operator within condition " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    SemanticBooleanOperator* BoolOp = new SemanticBooleanOperator();
+                    BoolOp->Condition = BooleanOperationTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    TokenIndex++;
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(BoolOp);
+
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentStart){
+                    // Only if it contains a comparison otherwise its a operation
+                    int ClonedTokenIndex = TokenIndex;
+                    bool Process = false;
+                    int BlocksToEscape = 0;
+                    while(BlocksToEscape >= 0 && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::Comparitor){
+                            Process = true;
+                            break;
+                        }
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::BooleanOperator){
+                            Process = true;
+                            break;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                            BlocksToEscape++;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                            BlocksToEscape--;
+                        }
+                        ClonedTokenIndex++;
+                    }
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    if(Process){
+                        // BracketsStack.push(ConditionStack.size());
+                        // Start building a new condition
+                        auto newStatement = new SemanticStatment();
+                        newStatement->StateType = SemanticStatment::StatementType::BOOLEAN_STATEMENT;
+                        newStatement->Namespace = ParentBlock->Namespace;
+                        newStatement->TokenIndex = TokenIndex;
+                        CurrentOperatingStatement.push(newStatement);
+
+                        ArguemntsToEnd++;
+                        TokenIndex++;
+                        continue;
+                    }
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                    ArguemntsToEnd--;
+
+                    auto Top = CurrentOperatingStatement.top();
+                    CurrentOperatingStatement.pop();
+
+                    if(Top != SemStatement){
+                        CurrentOperatingStatement.top()->ParameterConditions.push_back(Top);
+                    }
+
+                    // int ToPop = ConditionStack.size() - BracketsStack.top();
+                    // BracketsStack.pop();
+
+                    // for(; ToPop > 0; ToPop--){
+                    //     CurrentOperatingStatement->ParameterConditions.push_back(ConditionStack.top());
+                    //     ConditionStack.pop();
+                    // }
+
+                    TokenIndex++;
+                    continue;
+                }
+
+                // Otherwise interpret as a operation
+                // Find end of operation
+                int ClonedTokenIndex = TokenIndex;
+                int EndToken = TokenIndex - 1;
+                int BlocksToEscape = 0;
+                while(Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::Comparitor && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::BooleanOperator && (Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::ArgumentEnd || BlocksToEscape) && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                    ClonedTokenIndex++;
+                    EndToken++;
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                        BlocksToEscape++;
+                    }
+                    else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd && BlocksToEscape){
+                        BlocksToEscape--;
+                    }
+                }
+                if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(ClonedTokenIndex).tokenValue << std::endl;
+                    return -1;
+                }
+
+                // Interpret
+                if(!CurrentOperation){
+                    InterpretOpration(File, Function, ParentBlock, Argument1, TokenIndex, false, EndToken);
+                }
+                else{
+                    InterpretOpration(File, Function, ParentBlock, CurrentOperation->Operation2, TokenIndex, false, EndToken);
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(CurrentOperation);
+                    CurrentOperation = nullptr;
+                }
+
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::BlockStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' Got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+            SemanticBlock* Bloc = new SemanticBlock();
+            SemStatement->Block = Bloc;
+            Bloc->TokenIndex = TokenIndex;
+            Bloc->Namespace = SemStatement->Namespace + "__ELSE_IF____" + GenerateID() + "__";
+            Bloc->Parent = ParentBlock;
+            
+            // Find end block
+            int BlocksToEnd = 1;
+            int ClonedIndex = TokenIndex;
+            while (Lexar->getToken(ClonedIndex).tokenType != TokenTypes::NullToken && BlocksToEnd){
+                if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockStart){
+                    BlocksToEnd++;
+                }
+                else if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockEnd){
+                    BlocksToEnd--;
+                }
+                ClonedIndex++;
+            }
+            if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            Bloc->TokenSize = ClonedIndex - TokenIndex;
+
+            InterpretBlock(File, Function, Bloc, TokenIndex);
+
+            ParentBlock->Block.push_back(SemStatement);
+            TokenIndex++;
+
+            return 0;
+        }
+        else if (Lexar->getToken(TokenIndex).tokenValue == "else"){
+            TokenIndex++;
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            SemanticStatment* SemStatement = new SemanticStatment{};
+            SemStatement->StateType = SemanticStatment::StatementType::ELSE_STATEMENT;
+            SemStatement->Namespace = ParentBlock->Namespace;
+            SemStatement->TokenIndex = TokenIndex - 2;
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::BlockStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' Got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+            SemanticBlock* Bloc = new SemanticBlock();
+            SemStatement->Block = Bloc;
+            Bloc->TokenIndex = TokenIndex;
+            Bloc->Namespace = SemStatement->Namespace + "__ELSE____" + GenerateID() + "__";
+            Bloc->Parent = ParentBlock;
+            
+            // Find end block
+            int BlocksToEnd = 1;
+            int ClonedIndex = TokenIndex;
+            while (Lexar->getToken(ClonedIndex).tokenType != TokenTypes::NullToken && BlocksToEnd){
+                if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockStart){
+                    BlocksToEnd++;
+                }
+                else if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockEnd){
+                    BlocksToEnd--;
+                }
+                ClonedIndex++;
+            }
+            if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            Bloc->TokenSize = ClonedIndex - TokenIndex;
+
+            InterpretBlock(File, Function, Bloc, TokenIndex);
+
+            ParentBlock->Block.push_back(SemStatement);
+            TokenIndex++;
+
+            return 0;
+        }
+        else if (Lexar->getToken(TokenIndex).tokenValue == "while"){
+            TokenIndex++;
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::ArgumentStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '(' but got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+
+            SemanticStatment* SemStatement = new SemanticStatment{};
+            SemStatement->StateType = SemanticStatment::StatementType::WHILE_STATEMENT;
+            SemStatement->Namespace = ParentBlock->Namespace;
+            SemStatement->TokenIndex = TokenIndex - 2;
+            
+            int ArguemntsToEnd = 1;
+
+            SemanticCondition* CurrentOperation = nullptr;
+            SemanticOperation* Argument1 = nullptr;
+
+            std::stack<SemanticStatment*> CurrentOperatingStatement = {};
+            CurrentOperatingStatement.push(SemStatement);
+
+            // Basically condition bidamas
+            while(Lexar->getToken(TokenIndex).tokenType != TokenTypes::NullToken && ArguemntsToEnd > 0){
+                if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Comparitor){
+                    CurrentOperation = new SemanticCondition();
+                    CurrentOperation->Condition = ConditionTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    CurrentOperation->Namespace = ParentBlock->Namespace;
+                    CurrentOperation->TokenIndex = TokenIndex - 2;
+                    CurrentOperation->Operation1 = Argument1;
+                    Argument1 = nullptr;
+                    TokenIndex++;
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == BooleanOperator){
+                    // Combinations of Conditions
+                    if(CurrentOperation || Argument1){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected Boolean Operator within condition " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    SemanticBooleanOperator* BoolOp = new SemanticBooleanOperator();
+                    BoolOp->Condition = BooleanOperationTypeMap[Lexar->getToken(TokenIndex).tokenValue];
+                    TokenIndex++;
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(BoolOp);
+
+                    continue;
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentStart){
+                    // Only if it contains a comparison otherwise its a operation
+                    int ClonedTokenIndex = TokenIndex;
+                    bool Process = false;
+                    int BlocksToEscape = 0;
+                    while(BlocksToEscape >= 0 && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::Comparitor){
+                            Process = true;
+                            break;
+                        }
+                        if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::BooleanOperator){
+                            Process = true;
+                            break;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                            BlocksToEscape++;
+                        }
+                        else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                            BlocksToEscape--;
+                        }
+                        ClonedTokenIndex++;
+                    }
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+
+                    if(Process){
+                        // BracketsStack.push(ConditionStack.size());
+                        // Start building a new condition
+                        auto newStatement = new SemanticStatment();
+                        newStatement->StateType = SemanticStatment::StatementType::BOOLEAN_STATEMENT;
+                        newStatement->Namespace = ParentBlock->Namespace + "____" + GenerateID() + "__";
+                        newStatement->TokenIndex = TokenIndex;
+                        CurrentOperatingStatement.push(newStatement);
+
+                        ArguemntsToEnd++;
+                        TokenIndex++;
+                        continue;
+                    }
+                }
+                else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::ArgumentEnd){
+                    ArguemntsToEnd--;
+
+                    auto Top = CurrentOperatingStatement.top();
+                    CurrentOperatingStatement.pop();
+
+                    if(Top != SemStatement){
+                        CurrentOperatingStatement.top()->ParameterConditions.push_back(Top);
+                    }
+
+                    TokenIndex++;
+                    continue;
+                }
+
+                // Otherwise interpret as a operation
+                // Find end of operation
+                int ClonedTokenIndex = TokenIndex;
+                int EndToken = TokenIndex - 1;
+                int BlocksToEscape = 0;
+                while(Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::Comparitor && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::BooleanOperator && (Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::ArgumentEnd || BlocksToEscape) && Lexar->getToken(ClonedTokenIndex).tokenType != TokenTypes::NullToken){
+                    ClonedTokenIndex++;
+                    EndToken++;
+                    if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentStart){
+                        BlocksToEscape++;
+                    }
+                    else if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::ArgumentEnd && BlocksToEscape){
+                        BlocksToEscape--;
+                    }
+                }
+                if(Lexar->getToken(ClonedTokenIndex).tokenType == TokenTypes::NullToken){
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(ClonedTokenIndex).tokenValue << std::endl;
+                    return -1;
+                }
+
+                // Interpret
+                if(!CurrentOperation){
+                    InterpretOpration(File, Function, ParentBlock, Argument1, TokenIndex, false, EndToken);
+                }
+                else{
+                    InterpretOpration(File, Function, ParentBlock, CurrentOperation->Operation2, TokenIndex, false, EndToken);
+                    CurrentOperatingStatement.top()->ParameterConditions.push_back(CurrentOperation);
+                    CurrentOperation = nullptr;
+                }
+
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+
+            if(Lexar->getToken(TokenIndex).tokenType != TokenTypes::BlockStart){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Expected '{' Got " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            TokenIndex++;
+            SemanticBlock* Bloc = new SemanticBlock();
+            SemStatement->Block = Bloc;
+            Bloc->TokenIndex = TokenIndex;
+            Bloc->Namespace = SemStatement->Namespace + "__WHILE____" + GenerateID() + "__";
+            Bloc->Parent = ParentBlock;
+            
+            // Find end block
+            int BlocksToEnd = 1;
+            int ClonedIndex = TokenIndex;
+            while (Lexar->getToken(ClonedIndex).tokenType != TokenTypes::NullToken && BlocksToEnd){
+                if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockStart){
+                    BlocksToEnd++;
+                }
+                else if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::BlockEnd){
+                    BlocksToEnd--;
+                }
+                ClonedIndex++;
+            }
+            if(Lexar->getToken(ClonedIndex).tokenType == TokenTypes::NullToken){
+                std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected EOF " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                return -1;
+            }
+            Bloc->TokenSize = ClonedIndex - TokenIndex;
+
+            InterpretBlock(File, Function, Bloc, TokenIndex);
+
+            ParentBlock->Block.push_back(SemStatement);
+            TokenIndex++;
+
+            return 0;
+        }
         else{
             std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Statement not interpretable " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
             return -1;
@@ -1681,9 +2309,6 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             // Operation
             // Block
 
-            // COULD BE VARIABLE DEF
-            // TODO Variable Definition
-
             // Start with statments
             if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Statement){
                 // See what statement
@@ -1694,9 +2319,84 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::TypeDef){
                 InterpretVariableDefinition(File, Function, ParentBlock, TokenIndex);
             }
-            // else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Identifier){
-            //     // TODO CUSTOM TYPEDEFS
-            // }
+            else if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Identifier){
+                // TODO CUSTOM TYPEDEFS
+                int TokenIdentifierIndex = TokenIndex;
+
+                // Variable operations
+                TokenIndex++;
+                if(Lexar->getToken(TokenIndex).tokenType == TokenTypes::Operator){
+                    if(Lexar->getToken(TokenIndex).tokenValue == "="){
+                        // Assignment
+                        TokenIndex++;
+
+                        // Get the operation for store
+                        SemanticOperation* AssignementOperation = nullptr;
+                        InterpretOpration(File, Function, ParentBlock, AssignementOperation, TokenIndex);
+
+                        // Find Variable and its symbol
+                        // TODO OTHER FILES
+                        // Load Defined Variables
+                        std::stack<SemanticBlock*> blockStack;
+                        blockStack.push(ParentBlock);
+
+                        SemanticVariable* VariableAssigned = nullptr;
+
+                        while(!blockStack.empty()){
+                            SemanticBlock* CurrentBlock = blockStack.top();
+                            blockStack.pop();
+
+                            for(auto v : CurrentBlock->Variables){
+                                if (v->Identifier == Lexar->getToken(TokenIdentifierIndex).tokenValue){
+                                    // Found the soonest option of the variable
+                                    AssignementOperation->ResultStore = "[" + v->Namespace + "__" + v->Identifier + "]";
+                                    CurrentBlock = nullptr; // End loop early
+                                    VariableAssigned = v;
+                                    break;
+                                }
+
+                            }
+
+                            if(!CurrentBlock){
+                                break;
+                            }
+
+                            if(CurrentBlock->Parent){ // Backtrack not forward
+                                blockStack.push(CurrentBlock->Parent);
+                            }
+                        }
+
+                        if(!VariableAssigned){
+                            // Look through globals
+                            for(auto v : File->Variables){
+                                if (v->Identifier == Lexar->getToken(TokenIdentifierIndex).tokenValue){
+                                    // Found the soonest option of the variable
+                                    AssignementOperation->ResultStore = "[" + v->Namespace + "__" + v->Identifier + "]";
+                                    VariableAssigned = v;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if(!VariableAssigned){
+                            std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Variable Not Locatable " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                            return -1;
+                        }
+
+                        ParentBlock->Block.push_back(AssignementOperation);
+
+                        TokenIndex++;
+                    }
+                    else{
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected operator " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                        return -1;
+                    }
+                }
+                else{
+                    std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Non-Variable " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
+                    return -1;
+                }
+            }
             else{
                 std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Unexpected token " << Lexar->getToken(TokenIndex).tokenValue << std::endl;
                 return -1;
@@ -1711,7 +2411,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
 
         // Function block def
         SemanticBlock* FunctionBlock = new SemanticBlock{};
-        FunctionBlock->Namespace = Function->Namespace;
+        FunctionBlock->Namespace = Function->Symbol;
         FunctionBlock->TokenIndex = Function->StartToken;
         FunctionBlock->TokenSize = Function->EndToken - Function->StartToken;
         FunctionBlock->Parent = nullptr;
@@ -1810,7 +2510,7 @@ SemanticAnalyser::SemanticAnalyser(std::vector<LexicalAnalyser*> AnalysisData)
         }
 
         // Load functions
-        if(Classifiers::FindFunctions(File)){
+        if(Classifiers::FindFunctions(File, 0, -1, "__" + File->ID + "____GLOB__")){
             return;
         }
 

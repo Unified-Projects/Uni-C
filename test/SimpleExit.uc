@@ -1,8 +1,7 @@
-int FuncTest(int x = 2){
-    return x;
-}
-
 int main(){
-    int y = 2;
-    return y + FuncTest();
+    int y = 0;
+    while (y != 10){
+        y = y + 1;
+    }
+    return y;
 }

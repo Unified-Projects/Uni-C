@@ -112,17 +112,47 @@ int main(int argc, char* argv[]){
                         std::cout << std::string((depth + 3 + IdentPlus)*(IndentCount), ' ') << "t(" << o->Type << ") T(" << o->TypeDef << ") v(" << o->Value << ")" << std::endl;
                     }
                 }
+                std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "Conditions:" << std::endl;
                 for(auto p : SemStat->ParameterConditions){
-                    auto ParCon = (Parsing::SemanticVariables::SemanticOperation*)p;
-                    std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "Condition: TODO" << std::endl;
+                    auto ParConC = (Parsing::SemanticVariables::SemanticCondition*)p;
+                    auto ParConB = (Parsing::SemanticVariables::SemanticBooleanOperator*)p;
+                    if(p->GetType() == 3){
+                        std::cout << std::string((depth + 3 + IdentPlus)*(IndentCount), ' ') << "Comparison: T(" << ParConC->Condition << ")" << std::endl;
+
+                        auto SemOp = (Parsing::SemanticVariables::SemanticOperation*)ParConC->Operation1;
+                        std::cout << std::string((depth + 4 + IdentPlus)*(IndentCount), ' ') << "Operation 1: t(" << SemOp->EvaluatedTypedef << ")" << std::endl;
+
+                        for(auto o : SemOp->Operations){
+                            std::cout << std::string((depth + 5 + IdentPlus)*(IndentCount), ' ') << "t(" << o->Type << ") T(" << o->TypeDef << ") v(" << o->Value << ")" << std::endl;
+                        }
+
+                        SemOp = (Parsing::SemanticVariables::SemanticOperation*)ParConC->Operation2;
+                        
+                        std::cout << std::string((depth + 4 + IdentPlus)*(IndentCount), ' ') << "Operation 2: t(" << SemOp->EvaluatedTypedef << ")" << std::endl;
+
+                        for(auto o : SemOp->Operations){
+                            std::cout << std::string((depth + 5 + IdentPlus)*(IndentCount), ' ') << "t(" << o->Type << ") T(" << o->TypeDef << ") v(" << o->Value << ")" << std::endl;
+                        }
+                    }
+                    else if(p->GetType() == 4){
+                        std::cout << std::string((depth + 3 + IdentPlus)*(IndentCount), ' ') << "Boolean Operation: T(" << ParConB->Condition << ")" << std::endl;
+                    }
+                    else{
+                        std::cout << std::string((depth + 3 + IdentPlus)*(IndentCount), ' ') << "Compact Operation: Cannot be logged" << std::endl;
+                    }
                 }
 
                 if(SemStat->Block){
-                    LogBlock((Parsing::SemanticVariables::SemanticBlock*)x, depth+2 + IdentPlus);
+                    LogBlock((Parsing::SemanticVariables::SemanticBlock*)SemStat->Block, depth+2 + IdentPlus);
                 }
             }
             else if(x->GetType() == 1){
-                // Operation
+                auto SemOp = (Parsing::SemanticVariables::SemanticOperation*)x;
+                std::cout << std::string((depth + 1 + IdentPlus)*(IndentCount), ' ') << "Operation: t(" << SemOp->EvaluatedTypedef << ")" << std::endl;
+
+                for(auto o : SemOp->Operations){
+                    std::cout << std::string((depth + 2 + IdentPlus)*(IndentCount), ' ') << "t(" << o->Type << ") T(" << o->TypeDef << ") v(" << o->Value << ")" << std::endl;
+                }
             }
             else if(x->GetType() == 2){
                 // Block

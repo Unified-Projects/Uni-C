@@ -21,6 +21,8 @@ namespace Exporting
         std::string GenerateBlock(Parsing::SemanticVariables::SemanticisedFile* File, Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, Parsing::SemanticVariables::SemanticBlock* Block);
         std::string InterpretOperation(Parsing::SemanticVariables::SemanticisedFile* File, Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, Parsing::SemanticVariables::SemanticOperation* Operation, Parsing::SemanticVariables::SemanticBlock* ParentBlock);
 
+        std::string GenerateIfTree(Parsing::SemanticVariables::SemanticisedFile* File, Parsing::SemanticVariables::SemanticFunctionDeclaration* Function, Parsing::SemanticVariables::SemanticInstance* s, Parsing::SemanticVariables::SemanticStatment* Statement, Parsing::SemanticVariables::SemanticBlock* Block, std::string Exitter = "", std::string Entry = "");
+
     protected:
         Parsing::SemanticAnalyser* Files;
         Parsing::SemanticVariables::SemanticisedFile* ActiveFile;

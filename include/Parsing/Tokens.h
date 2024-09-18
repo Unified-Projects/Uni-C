@@ -9,6 +9,8 @@ namespace Parsing
         TypeDef,
         Identifier,
         Operator,
+        BooleanOperator,
+        Comparitor,
         ArgumentStart,
         ArgumentEnd,
         ArgumentSeparator,

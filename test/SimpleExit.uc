@@ -1,7 +1,8 @@
 int main(){
-    int y = 0;
-    while (y != 10){
-        y = y + 1;
+    int y = 1;
+    int f = 4;
+    for (int i = 1; i < f + 1; i = i + 1){
+        y = y * i;
     }
     return y;
 }

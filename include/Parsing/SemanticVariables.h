@@ -114,6 +114,7 @@ namespace Parsing
                 ELSE_IF_STATEMENT,
                 BOOLEAN_STATEMENT,
                 WHILE_STATEMENT,
+                FOR_STATEMENT,
                 STATIC_STATEMENT, // TODO HANDLE CORRECTLY
                 CONST_STATEMENT // TODO HANDLE CORRECTLY
             };

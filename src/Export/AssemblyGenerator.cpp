@@ -272,7 +272,7 @@ std::string AssemblyGenerator::GenerateIfTree(SemanticisedFile* File, SemanticFu
 
                 if(((SemanticBooleanOperator*)(Statement->ParameterConditions[i+1]))->Condition == SemanticBooleanOperator::AND_CONDITION_OPERATION){
                     Assembly += "    cmp " + Register1->GetBitOp(DataSize) + " " + std::to_string(ConditionInverter[Con->Condition]) + ", " + Register1->Get(DataSize) + ", " + Register2->Get(DataSize) + "\n";
-                    Assembly += "    jc " + Exitter;
+                    Assembly += "    jc " + Exitter + "\n";
                 }
                 else if(((SemanticBooleanOperator*)(Statement->ParameterConditions[i+1]))->Condition == SemanticBooleanOperator::OR_CONDITION_OPERATION){
                     Assembly += "    cmp " + Register1->GetBitOp(DataSize) + " " + std::to_string(Con->Condition) + ", " + Register1->Get(DataSize) + ", " + Register2->Get(DataSize) + "\n";
@@ -320,6 +320,24 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
     bool HasReturned = false;
 
     SemanticInstance* PriorValue = nullptr;
+
+    for(auto v : Block->Variables){
+        if(v->TypeDef == "char" || v->TypeDef == "uchar"){
+            Assembly += "    mov b [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+        }
+        else if(v->TypeDef == "short" || v->TypeDef == "ushort"){
+            Assembly += "    mov w [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+        }
+        else if(v->TypeDef == "int" || v->TypeDef == "uint"){
+            Assembly += "    mov d [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+        }
+        else if(v->TypeDef == "long" || v->TypeDef == "ulong"){
+            Assembly += "    mov q [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+        }
+        else{
+            Assembly += "    ; Unsupported Data Type for Initialiser";
+        }
+    }
 
     for (auto s : Block->Block){
         if(s->GetType() == 0){ // Statement
@@ -386,6 +404,28 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
                 Assembly += Statement->Block->Namespace + "__WHILE_Block_End__:\n";
                 Assembly += Statement->Block->Namespace + "__WHILE_End__:\n";
             }
+            else if(Statement->StateType == SemanticStatment::FOR_STATEMENT){
+                // Reset Variables
+                for(auto v : ((SemanticBlock*)(Statement->Block))->Variables){
+                    if(v->TypeDef == "char" || v->TypeDef == "uchar"){
+                        Assembly += "    mov b [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+                    }
+                    else if(v->TypeDef == "short" || v->TypeDef == "ushort"){
+                        Assembly += "    mov w [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+                    }
+                    else if(v->TypeDef == "int" || v->TypeDef == "uint"){
+                        Assembly += "    mov d [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+                    }
+                    else if(v->TypeDef == "long" || v->TypeDef == "ulong"){
+                        Assembly += "    mov q [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
+                    }
+                    else{
+                        Assembly += "    ; Unsupported Data Type for Initialiser";
+                    }
+                }
+
+                Assembly += GenerateBlock(File, Function, ((SemanticBlock*)(Statement->Block)));
+            }
             else{
                 std::cerr << Function->Identifier << ":" << s->TokenIndex << " << ASM::" << __LINE__ << " << " << "Statement not implemented (" << Statement->StateType << ")" << std::endl;
                 return "";
@@ -410,7 +450,7 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
             }
         }
         else{
-            std::cerr << Function->Identifier << ":" << s->TokenIndex << " << ASM::" << __LINE__ << " << " << "Failed to interpret block element" << std::endl;
+            std::cerr << Function->Identifier << ":" << s->TokenIndex << " << ASM::" << __LINE__ << " << " << "Failed to interpret block element " << s->GetType() << std::endl;
             return "";
         }
 
@@ -504,8 +544,9 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                     }
 
                     for(auto x : CurrentBlock->Block){
-                        if(x->GetType() == 2){
-                            blockStack.push((SemanticBlock*)x);
+                        if(x->GetType() == 0){
+                            if((((SemanticStatment*)x)->Block))
+                                blockStack.push(((SemanticBlock*)(((SemanticStatment*)x)->Block)));
                         }
                     }
                 }

@@ -10,7 +10,7 @@ std::vector<std::string> ValidStatements = {
     "if",
     "else",
     "while",
-    // "for",
+    "for",
     // "do",
     // "switch",
     // "case",

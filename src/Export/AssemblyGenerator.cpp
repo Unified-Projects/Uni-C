@@ -708,7 +708,6 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
         File_Text = modifiedFileText.str();
     }
 
-
     { // Mov Chaining Optimiser
         // Split File_Text into lines
         std::istringstream fileStream(File_Text);
@@ -756,6 +755,137 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
         File_Text = modifiedFileText.str();
     }
 
+    { // Incr Optimisation (+1)
+        // Split File_Text into lines
+        std::istringstream fileStream(File_Text);
+        std::string line;
+        std::vector<std::string> lines;
+        while (std::getline(fileStream, line)) {
+            lines.push_back(line);
+        }
+
+        std::vector<std::string> modifiedLines = {};
+        std::regex matchRegex(R"(/\s*add\sq\s(r.), (r.), 1/gm)"); // TODO Think about this optimisation in terms of bitsizes?
+        std::smatch match;
+
+        for(auto l : lines){
+            if(std::regex_search(l, match, matchRegex)){
+                std::string Arg1 = match[1];
+                std::string Arg2 = match[2];
+                std::string Arg3 = match[3];
+
+                if(Arg1 == Arg2){
+                    modifiedLines.push_back(std::string("    incr ") + Arg1);
+                }
+                else{
+                    modifiedLines.push_back(l);
+                }
+
+            }
+            else{
+                modifiedLines.push_back(l);
+            }
+        }
+    }
+
+    { // Decr Optimisation (-1)
+        // Split File_Text into lines
+        std::istringstream fileStream(File_Text);
+        std::string line;
+        std::vector<std::string> lines;
+        while (std::getline(fileStream, line)) {
+            lines.push_back(line);
+        }
+
+        std::vector<std::string> modifiedLines = {};
+        std::regex matchRegex(R"(/\s*add\sq\s(r.), (r.), 1/gm)"); // TODO Think about this optimisation in terms of bitsizes?
+        std::smatch match;
+
+        for(auto l : lines){
+            if(std::regex_search(l, match, matchRegex)){
+                std::string Arg1 = match[1];
+                std::string Arg2 = match[2];
+                std::string Arg3 = match[3];
+
+                if(Arg1 == Arg2){
+                    modifiedLines.push_back(std::string("    decr ") + Arg1);
+                }
+                else{
+                    modifiedLines.push_back(l);
+                }
+
+            }
+            else{
+                modifiedLines.push_back(l);
+            }
+        }
+    }
+
+    { // Inc Optimisation (+x)
+        // Split File_Text into lines
+        std::istringstream fileStream(File_Text);
+        std::string line;
+        std::vector<std::string> lines;
+        while (std::getline(fileStream, line)) {
+            lines.push_back(line);
+        }
+
+        std::vector<std::string> modifiedLines = {};
+        std::regex matchRegex(R"(/\s*add\sq\s(r.), (r.), (\S+)/gm)"); // TODO Think about this optimisation in terms of bitsizes?
+        std::smatch match;
+
+        for(auto l : lines){
+            if(std::regex_search(l, match, matchRegex)){
+                std::string Arg1 = match[1];
+                std::string Arg2 = match[2];
+                std::string Arg3 = match[3];
+
+                if(Arg1 == Arg2){
+                    modifiedLines.push_back(std::string("    inc ") + Arg1 + ", " + Arg3);
+                }
+                else{
+                    modifiedLines.push_back(l);
+                }
+
+            }
+            else{
+                modifiedLines.push_back(l);
+            }
+        }
+    }
+
+    { // Dec Optimisation (-x)
+        // Split File_Text into lines
+        std::istringstream fileStream(File_Text);
+        std::string line;
+        std::vector<std::string> lines;
+        while (std::getline(fileStream, line)) {
+            lines.push_back(line);
+        }
+
+        std::vector<std::string> modifiedLines = {};
+        std::regex matchRegex(R"(/\s*sub\sq\s(r.), (r.), (\S+)/gm)"); // TODO Think about this optimisation in terms of bitsizes?
+        std::smatch match;
+
+        for(auto l : lines){
+            if(std::regex_search(l, match, matchRegex)){
+                std::string Arg1 = match[1];
+                std::string Arg2 = match[2];
+                std::string Arg3 = match[3];
+
+                if(Arg1 == Arg2){
+                    modifiedLines.push_back(std::string("    dec ") + Arg1 + ", " + Arg3);
+                }
+                else{
+                    modifiedLines.push_back(l);
+                }
+
+            }
+            else{
+                modifiedLines.push_back(l);
+            }
+        }
+    }
 
     return File_Header + "; TODO REMOVE AS EXECUTABLE SHOULD PRELOAD RSP\n    mov q rsp, 50000000\n    jmp _start\n; section .bss\n" + File_BSS + "\n; section .data\n" + File_DATA + "\n; section .text\n" + EntryText + File_Text;
 }

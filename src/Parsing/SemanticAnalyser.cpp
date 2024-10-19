@@ -1585,6 +1585,9 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             }
 
             if(o->Type != SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VALUE && o->Type != SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE && o->Type != SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE_ARGUMENT){
+                if(o->Type == SemanticOperation::SemanticOperationValue::OPERATION_FUNCTION && EvalType.size() == 0){
+                    EvalType = o->TypeDef;
+                }
                 continue;
             }
 
@@ -1660,7 +1663,6 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 // Ensure type consistency
                 if(Operation->EvaluatedTypedef != Function->FunctionReturn.TypeDef){
                     bool Valid = false;
-                    std::cout << Operation->EvaluatedTypedef << std::endl;
                     for(auto x : TypeConversionCompatibilityMap[Operation->EvaluatedTypedef]){
                         if(x == Function->FunctionReturn.TypeDef){
                             // We can convert
@@ -1669,7 +1671,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                         }
                     }
                     if(!Valid){
-                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Attempted to return non " << Function->FunctionReturn.TypeDef << std::endl;
+                        std::cerr << File->AssociatedFile << ":" << Lexar->getToken(TokenIndex).fileLine << " << Semantic::" << __LINE__ << " << " << "Attempted to return non " << Function->FunctionReturn.TypeDef << " with " << Operation->EvaluatedTypedef << std::endl;
                         return -1;
                     }
 

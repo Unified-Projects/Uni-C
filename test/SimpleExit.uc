@@ -1,8 +1,25 @@
+// int fib(int n = 1){
+//     if(n <= 1){
+//         return n;
+//     }
+//     else{
+//         return fib(n - 1) + fib(n - 2);
+//     }
+//     return 0;
+// }
+
+int fib(int n = 1){
+    if(n == 0){
+        return 4;
+    }
+    else{
+        return fib(n - 1);
+    }
+    return 0;
+}
+
 int main(){
     int y = 1;
-    int f = 4;
-    for (int i = 1; i < f + 1; i = i + 1){
-        y = y * i;
-    }
+    y = fib(3);
     return y;
 }

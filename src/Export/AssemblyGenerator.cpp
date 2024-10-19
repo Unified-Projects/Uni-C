@@ -57,6 +57,7 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             }
             Assembly += Register1->SetVal(Oper);
             Assembly += "    push " + Register1->Get(8) + "\n";
+            Stack->Push();
             Types.push(Oper->TypeDef);
         }
         else if (Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE){
@@ -68,6 +69,7 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             // Get the variables value
             Assembly += "    mov " + Register1->GetBitOp(StandardisedTypes[Oper->TypeDef]->DataSize) + " " + Register1->Get(StandardisedTypes[Oper->TypeDef]->DataSize) + ", [" + Oper->Value + "]\n"; // TODO Create a GLOBAL TYPE-MAP
             Assembly += "    push " + Register1->Get(8) + "\n"; // Push to stack
+            Stack->Push();
             Types.push(Oper->TypeDef);
         }
         else if (Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_VARIABLE_ARGUMENT){
@@ -76,9 +78,17 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
                 std::cerr << __LINE__ << " STUB" << std::endl;
             }
             Assembly += "    push " + ArgumentRegisters[std::atoi(Oper->Value.data())] + "\n";
+            Stack->Push();
             Types.push(Oper->TypeDef);
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_FUNCTION){
+            // Sort out saving current args
+            int ParamCount = 0;
+            for(auto x : Function->Parameters){
+                Assembly += "    push " + ArgumentRegisters[ParamCount] + "\n";
+                Stack->Push();
+            }
+
             for(auto p : Oper->Values){
                 std::string Parameter = InterpretOperation(File, Function, p, ParentBlock);
                 if(Parameter == ""){
@@ -89,19 +99,29 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
 
             // Save stack for allignment
             //TODO Stack helper tool to do this and allow stack based argumetns
-            Assembly += "    mov q [" + Function->Symbol + "__RSP_8], rsp\n    and q rsp, rsp, -64\n";
+            // Assembly += "    mov q [" + Function->Symbol + "__RSP_8], rsp\n    and q rsp, rsp, -64\n";
+
 
             Assembly += "    call " + Oper->Value + "\n";
 
-            Assembly += "    mov q rsp, [" + Function->Symbol + "__RSP_8]\n";
+            // Assembly += "    mov q rsp, [" + Function->Symbol + "__RSP_8]\n";
+
+            ParamCount = 0;
+            for(auto x : Function->Parameters){
+                Assembly += "    pop " + ArgumentRegisters[ParamCount] + "\n";
+                Stack->Pop();
+            }
 
             Assembly += "    push rax\n"; // Load return value
+            Stack->Push();
 
             Types.push(Oper->TypeDef);
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_ADD){
-            Assembly += "    pop " + Register1->Get(8) + "\n";
             Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
 
             // TODO Non-Standard operators!!!
 
@@ -113,17 +133,21 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
                 Assembly += "    add " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg1Type);
             }
             else{
                 Assembly += "    add " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg2Type);
             }
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_SUB){
-            Assembly += "    pop " + Register1->Get(8) + "\n";
             Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
 
             // TODO Non-Standard operators!!!
 
@@ -135,17 +159,21 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
                 Assembly += "    sub " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg1Type);
             }
             else{
                 Assembly += "    sub " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg2Type);
             }
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_MUL){
-            Assembly += "    pop " + Register1->Get(8) + "\n";
             Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
 
             // TODO Non-Standard operators!!!
 
@@ -162,12 +190,15 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             else{
                 Assembly += "    mul " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg2Type);
             }
         }
         else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_DIV){
-            Assembly += "    pop " + Register1->Get(8) + "\n";
             Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
 
             // TODO Non-Standard operators!!!
 
@@ -179,11 +210,13 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
             if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
                 Assembly += "    div " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg1Type);
             }
             else{
                 Assembly += "    div " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
                 Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
                 Types.push(Reg2Type);
             }
         }
@@ -199,10 +232,12 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
         if(Operation->ResultStore.find_first_of("__") != std::string::npos){
             // Variable / TempVarStore
             Assembly += "    pop " + Register1->Get(8) + "\n    mov " + Register1->GetBitOp(StandardisedTypes[Operation->EvaluatedTypedef]->DataSize) + " " + Operation->ResultStore + ", " + Register1->Get(8) + "\n";
+            Stack->Pop();
         }
         else{
             // Register store
             Assembly += "    pop " + Operation->ResultStore + "\n";
+            Stack->Pop();
         }
     }
 
@@ -250,7 +285,9 @@ std::string AssemblyGenerator::GenerateIfTree(SemanticisedFile* File, SemanticFu
             RegisterDefinition* Register2 = this->Stack->GetTempRegister(Temp2Symbol, Assembly, StatementID);
 
             Assembly += "    pop " + Register2->Get(StandardisedTypes[Con->Operation2->EvaluatedTypedef]->DataSize) + "\n";
+            Stack->Pop();
             Assembly += "    pop " + Register1->Get(StandardisedTypes[Con->Operation1->EvaluatedTypedef]->DataSize) + "\n";
+            Stack->Pop();
 
             std::string TypeDefUsed = "";
             int DataSize = 0;
@@ -321,6 +358,8 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
 
     SemanticInstance* PriorValue = nullptr;
 
+    Assembly += Stack->SaveToStack(0, 0);
+
     for(auto v : Block->Variables){
         if(v->TypeDef == "char" || v->TypeDef == "uchar"){
             Assembly += "    mov b [" + v->Namespace + "__" + v->Identifier + "], " + v->Initialiser + "\n";
@@ -355,7 +394,7 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
                     Assembly += Operation;
                 }
                 
-                Assembly += "    mov q rsp, [" + Function->Symbol + "__RSP]\n    ret\n";
+                // Assembly += "    mov q rsp, [" + Function->Symbol + "__RSP]\n    ret\n";
             }
             else if(Statement->StateType == SemanticStatment::IF_STATEMENT){
                 Assembly += GenerateIfTree(File, Function, s, Statement, Block, Statement->Block->Namespace + "__IF_Block_End__", Statement->Block->Namespace + "__Entry__");
@@ -462,6 +501,8 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
         return "";
     }
 
+    Assembly += Stack->RestoreStack();
+
     return Assembly;
 }
 
@@ -506,10 +547,11 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                 }
 
                 // Load header
-                FunctionString = "; global " + f->Symbol + "\n" + f->Symbol + ":\n    mov q [" + f->Symbol + "__RSP], rsp\n" + FunctionString;
+                FunctionString = "; global " + f->Symbol + "\n" + f->Symbol + ":\n" + FunctionString;
+                // FunctionString = "; global " + f->Symbol + "\n" + f->Symbol + ":\n    mov q [" + f->Symbol + "__RSP], rsp\n" + FunctionString;
                 // FunctionString = "; global __" + F->ID + "__" + f->Symbol + "\n__" + F->ID + "__" + f->Symbol + ":\n" + FunctionString;
-                File_BSS += f->Symbol + "__RSP:\n    resb 8\n";
-                File_BSS += f->Symbol + "__RSP_8:\n    resb 8\n";
+                // File_BSS += f->Symbol + "__RSP:\n    resb 8\n";
+                // File_BSS += f->Symbol + "__RSP_8:\n    resb 8\n";
 
                 // Load Defined Variables
                 std::stack<SemanticBlock*> blockStack;
@@ -600,11 +642,12 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
         }
 
         // Sort out stack allignment
-        std::string EntryRSPSave = GenerateID() + "__RSP__STORE";
-        File_BSS = "\n" + EntryRSPSave + ":\n    resb 8\n" + File_BSS;
+        // std::string EntryRSPSave = GenerateID() + "__RSP__STORE";
+        // File_BSS = "\n" + EntryRSPSave + ":\n    resb 8\n" + File_BSS;
 
 
-        EntryText = "; global _start\n_start:\n    mov q [" + EntryRSPSave + "], rsp\n    and q rsp, rsp, -16\n    call " + EntryFunction + RetVal + "\n    mov q rsp, [" + EntryRSPSave + "]\n    halt\n"; // TODO Arguments and environment processing
+        EntryText = "; global _start\n_start:\n    call " + EntryFunction + RetVal + "\n    halt\n"; // TODO Arguments and environment processing
+        // EntryText = "; global _start\n_start:\n    mov q [" + EntryRSPSave + "], rsp\n    and q rsp, rsp, -16\n    call " + EntryFunction + RetVal + "\n    mov q rsp, [" + EntryRSPSave + "]\n    halt\n"; // TODO Arguments and environment processing
     }
 
     //
@@ -613,8 +656,8 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
 
 
     // Optimisers
-
-    { // Push Pop Optimiser
+    // Dissabled due to stack tracking implemented
+    if(1==0){ // Push Pop Optimiser
         // Split File_Text into lines
         std::istringstream fileStream(File_Text);
         std::string line;

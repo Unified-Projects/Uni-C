@@ -153,8 +153,22 @@ RegisterDefinition* GlobalStack::FindSymbol(std::string Symbol, std::string Type
     return nullptr;
 }
 std::string GlobalStack::SaveToStack(int Allignment, int Padding){
+    Alters.push_back(0);
     return "";
 }
 std::string GlobalStack::RestoreStack(){
+    int ToPop = Alters.back();
+    Alters.pop_back();
+
+    if(ToPop > 0){
+        return "    sub q rsp, rsp, " + std::to_string(ToPop) + "\n";
+    }
+
     return "";
+}
+void GlobalStack::Push(){
+    Alters.back() += 1;
+}
+void GlobalStack::Pop(){
+    Alters.back() -= 1;
 }

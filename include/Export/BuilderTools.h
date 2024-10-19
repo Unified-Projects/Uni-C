@@ -30,6 +30,8 @@ namespace Exporting
             RegisterDefinition* FindSymbol(std::string Symbol, std::string TypeDef, std::string& AssemblyUpdate);
             std::string SaveToStack(int Allignment, int Padding);
             std::string RestoreStack();
+            void Push();
+            void Pop();
         };
     } // namespace SemanticHelpers
 } // namespace Exporting

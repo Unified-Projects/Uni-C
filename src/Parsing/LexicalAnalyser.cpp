@@ -3,6 +3,8 @@
 
 #include <algorithm>
 
+#include <iostream>
+
 using namespace Parsing;
 
 // Statements
@@ -110,6 +112,7 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data, const std::string File
             Stream = EatWord(Stream, true);
         }
         else if(Word.size() > 0){
+            bool Cont = false;
             if(std::find(ValidStatements.begin(), ValidStatements.end(), Word) != ValidStatements.end()){
                 tokens.push_back(Token{Word, TokenTypes::Statement, Line, CurrentLine});
             }
@@ -119,11 +122,16 @@ LexicalAnalyser::LexicalAnalyser(const std::string& Data, const std::string File
             else if(std::find(ValidMacroStatements.begin(), ValidMacroStatements.end(), Word) != ValidMacroStatements.end()){
                 tokens.push_back(Token(Word, TokenTypes::MacroStatement, Line, CurrentLine));
             }
-            else{
+            else if(Word.find_first_not_of("!\"£$%^&*()[]{}#~'@/?.>,<|`¬-") != std::string::npos){
                 tokens.push_back(Token{Word, TokenTypes::Identifier, Line, CurrentLine}); // Ascii literals are handled separately
             }
-            Stream = EatWord(Stream);
-            continue;
+            else{
+                Cont = true;
+            }
+            if(!Cont){
+                Stream = EatWord(Stream);
+                continue;
+            }
         }
 
         // Check character for non-words

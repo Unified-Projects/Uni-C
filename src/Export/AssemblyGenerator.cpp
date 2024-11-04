@@ -220,6 +220,150 @@ std::string AssemblyGenerator::InterpretOperation(SemanticisedFile* File, Semant
                 Types.push(Reg2Type);
             }
         }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_LSL){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+            std::string Reg2Type = Types.top();
+            Types.pop();
+
+            if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
+                Assembly += "    lsl " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg1Type);
+            }
+            else{
+                Assembly += "    lsl " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg2Type);
+            }
+        }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_LSR){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+            std::string Reg2Type = Types.top();
+            Types.pop();
+
+            if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
+                Assembly += "    lsr " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg1Type);
+            }
+            else{
+                Assembly += "    lsr " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg2Type);
+            }
+        }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_AND){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+            std::string Reg2Type = Types.top();
+            Types.pop();
+
+            if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
+                Assembly += "    and " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg1Type);
+            }
+            else{
+                Assembly += "    and " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg2Type);
+            }
+        }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_OR){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+            std::string Reg2Type = Types.top();
+            Types.pop();
+
+            if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
+                Assembly += "    or " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg1Type);
+            }
+            else{
+                Assembly += "    or " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg2Type);
+            }
+        }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_XOR){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+            Assembly += "    pop " + Register1->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+            std::string Reg2Type = Types.top();
+            Types.pop();
+
+            if(StandardisedTypes[Reg1Type]->DataSize > StandardisedTypes[Reg2Type]->DataSize){
+                Assembly += "    xor " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg1Type);
+            }
+            else{
+                Assembly += "    xor " + Register1->GetBitOp(StandardisedTypes[Reg2Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg2Type]->DataSize) + ", " + Register2->Get(StandardisedTypes[Reg2Type]->DataSize) + "\n";
+                Assembly += "    push " + Register1->Get(8) + "\n";
+                Stack->Push();
+                Types.push(Reg2Type);
+            }
+        }
+        else if(Oper->Type == SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_NOT){
+            Assembly += "    pop " + Register2->Get(8) + "\n";
+            Stack->Pop();
+
+            // TODO Non-Standard operators!!!
+
+            std::string Reg1Type = Types.top();
+            Types.pop();
+
+            Assembly += "    not " + Register1->GetBitOp(StandardisedTypes[Reg1Type]->DataSize) + " " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + ", " + Register1->Get(StandardisedTypes[Reg1Type]->DataSize) + "\n";
+            Assembly += "    push " + Register1->Get(8) + "\n";
+            Stack->Push();
+            Types.push(Reg1Type);
+        }
         else{
             std::cerr << __LINE__ << " Operation Not implemented" << std::endl;
             return "";
@@ -395,6 +539,7 @@ std::string AssemblyGenerator::GenerateBlock(SemanticisedFile* File, SemanticFun
                 }
                 
                 // Assembly += "    mov q rsp, [" + Function->Symbol + "__RSP]\n    ret\n";
+                Assembly += "    ret\n";
             }
             else if(Statement->StateType == SemanticStatment::IF_STATEMENT){
                 Assembly += GenerateIfTree(File, Function, s, Statement, Block, Statement->Block->Namespace + "__IF_Block_End__", Statement->Block->Namespace + "__Entry__");
@@ -520,6 +665,10 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
     // Load Constants (Non-Global)
     //
 
+    { // Load Globals
+        
+    }
+
     //
     // Allocate BSS for (Non-Global) Non-Standard Types
     //
@@ -626,7 +775,7 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                             RetVal = "\n    mov q rax, 0";
                         }
                         else if(f->FunctionReturn.TypeDef == "int"){
-                            // Nothinghere just a preventative method
+                            // Nothing here just a preventative method
                         }
                         else continue;
                         // Suitable
@@ -654,10 +803,9 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
     // Data Assembly
     //
 
-
     // Optimisers
-    // Dissabled due to stack tracking implemented
-    if(1==0){ // Push Pop Optimiser
+    // Dissabled due to stack tracking implemented (Fair play past me)
+    if(0 == 0){ // Push Pop Optimiser
         // Split File_Text into lines
         std::istringstream fileStream(File_Text);
         std::string line;
@@ -856,7 +1004,6 @@ std::string AssemblyGenerator::Generate(Parsing::SemanticAnalyser* Files){
                 else{
                     modifiedLines.push_back(l);
                 }
-
             }
             else{
                 modifiedLines.push_back(l);

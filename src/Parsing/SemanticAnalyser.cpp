@@ -81,6 +81,12 @@ std::map<std::string, SemanticOperation::SemanticOperationValue::SemanticOperati
     {"-", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_SUB}, 
     {"/", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_DIV}, 
     {"*", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_MUL}, 
+    {"<<",SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_LSL}, 
+    {">>",SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_LSR}, 
+    {"&", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_AND}, 
+    {"|", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_OR}, 
+    {"^", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_XOR}, 
+    {"!", SemanticOperation::SemanticOperationValue::SemanticOperationTypes::OPERATION_NOT}, 
 };
 
 std::map<std::string, SemanticCondition::ConditionTypes> ConditionTypeMap{
@@ -1334,7 +1340,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                     // More preferable
                     Operation->Operations.push_back(Operations.top());
                     Operations.pop();
-                    ValuesLoaded-=1;
+                    ValuesLoaded -= (Operation->Operations.back()->Type == SemanticVariables::SemanticOperation::SemanticOperationValue::OPERATION_NOT) ? 0 : 1;
                 }
 
                 // Load current operation to stack
@@ -1547,7 +1553,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
                 for(; OperationsToPush > 0; OperationsToPush--){
                     Operation->Operations.push_back(Operations.top());
                     Operations.pop();
-                    ValuesLoaded--;
+                    ValuesLoaded-=(Operation->Operations.back()->Type == SemanticVariables::SemanticOperation::SemanticOperationValue::OPERATION_NOT) ? 0 : 1;
                 }
             }
             else{
@@ -1567,7 +1573,7 @@ namespace Classifiers{ // Functions that are used to classify types of things li
             // More preferable
             Operation->Operations.push_back(Operations.top());
             Operations.pop();
-            ValuesLoaded-=1;
+            ValuesLoaded-=(Operation->Operations.back()->Type == SemanticVariables::SemanticOperation::SemanticOperationValue::OPERATION_NOT) ? 0 : 1;
         }
 
         if(ValuesLoaded != 1){

@@ -147,6 +147,14 @@ namespace Parsing
                     OPERATION_SUB,
                     OPERATION_MUL,
                     OPERATION_DIV,
+                    OPERATION_LSL,
+                    OPERATION_LSR,
+
+                    // Boolean
+                    OPERATION_NOT,
+                    OPERATION_AND,
+                    OPERATION_OR,
+                    OPERATION_XOR,
                 };
                 SemanticOperationTypes Type = SemanticOperationTypes::OPERATION_NULL;
                 std::string Value = "";

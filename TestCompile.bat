@@ -6,7 +6,7 @@ set input2=./test/SimpleExit.uc
 "%input%" -i "%input2%" -o test2
 
 "%asm%" test2.asm
-@REM "%emu%" test2.bytes -D
+"%emu%" test2.bytes -D
 
 @REM nasm -f win64 test2.asm -o test.obj
 @REM link test.obj /MACHINE:X64 /SUBSYSTEM:CONSOLE /OUT:test.exe /NODEFAULTLIB /ENTRY:_start /LARGEADDRESSAWARE:NO "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\um\x64\kernel32.lib" "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\um\x64\user32.lib"
